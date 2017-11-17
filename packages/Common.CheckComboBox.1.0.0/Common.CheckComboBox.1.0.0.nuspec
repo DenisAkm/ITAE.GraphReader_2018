@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+  <metadata>
+    <id>Common.CheckComboBox</id>
+    <version>1.0.0</version>
+    <title>Check Combo Box</title>
+    <authors>Sivaprasad</authors>
+    <owners>Sivaprasad</owners>
+    <projectUrl>http://srsivaprasad.blogspot.com/2016/07/nuget-check-combo-box.html</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Check Combo Box is a user control  combo box in which the items in the dropdown are preceded by a checkbox. As items are checked or unchecked, the Text property displayed above the dropdown is updated</description>
+    <summary />
+    <tags>CheckComboBox ComboBox Usercontrol C# checkedComboBox checked Combo Box</tags>
+  </metadata>
+</package>

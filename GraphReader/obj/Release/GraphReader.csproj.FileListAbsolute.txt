@@ -1,0 +1,90 @@
+c:\users\denis\documents\visual studio 2013\Projects\GraphReader\GraphReader\bin\Release\GraphReader.exe.config
+c:\users\denis\documents\visual studio 2013\Projects\GraphReader\GraphReader\bin\Release\GraphReader.exe
+c:\users\denis\documents\visual studio 2013\Projects\GraphReader\GraphReader\bin\Release\GraphReader.pdb
+c:\users\denis\documents\visual studio 2013\Projects\GraphReader\GraphReader\bin\Release\ZedGraph.dll
+c:\users\denis\documents\visual studio 2013\Projects\GraphReader\GraphReader\obj\Release\GraphReader.Form1.resources
+c:\users\denis\documents\visual studio 2013\Projects\GraphReader\GraphReader\obj\Release\GraphReader.Properties.Resources.resources
+c:\users\denis\documents\visual studio 2013\Projects\GraphReader\GraphReader\obj\Release\GraphReader.csproj.GenerateResource.Cache
+c:\users\denis\documents\visual studio 2013\Projects\GraphReader\GraphReader\obj\Release\GraphReader.exe
+c:\users\denis\documents\visual studio 2013\Projects\GraphReader\GraphReader\obj\Release\GraphReader.pdb
+C:\Users\123\YandexDisk\Работа\GraphReader\GraphReader\bin\Release\GraphReader.exe.config
+C:\Users\123\YandexDisk\Работа\GraphReader\GraphReader\obj\Release\GraphReader.exe
+C:\Users\123\YandexDisk\Работа\GraphReader\GraphReader\obj\Release\GraphReader.pdb
+C:\Users\123\YandexDisk\Работа\GraphReader\GraphReader\bin\Release\GraphReader.exe
+C:\Users\123\YandexDisk\Работа\GraphReader\GraphReader\bin\Release\GraphReader.pdb
+C:\Users\123\YandexDisk\Работа\GraphReader\GraphReader\obj\Release\GraphReader.csprojResolveAssemblyReference.cache
+C:\Users\123\YandexDisk\Работа\GraphReader\GraphReader\obj\Release\GraphReader.Properties.Resources.resources
+C:\Users\123\YandexDisk\Работа\GraphReader\GraphReader\obj\Release\GraphReader.csproj.GenerateResource.Cache
+C:\Users\Denis\YandexDisk\Работа\GraphReader\GraphReader\bin\Release\GraphReader.exe.config
+C:\Users\Denis\YandexDisk\Работа\GraphReader\GraphReader\obj\Release\GraphReader.exe
+C:\Users\Denis\YandexDisk\Работа\GraphReader\GraphReader\obj\Release\GraphReader.pdb
+C:\Users\Denis\YandexDisk\Работа\GraphReader\GraphReader\obj\Release\GraphReader.csprojResolveAssemblyReference.cache
+C:\Users\Denis\YandexDisk\Работа\GraphReader\GraphReader\obj\Release\GraphReader.Properties.Resources.resources
+C:\Users\Denis\YandexDisk\Работа\GraphReader\GraphReader\obj\Release\GraphReader.csproj.GenerateResource.Cache
+C:\Users\Denis\YandexDisk\Работа\GraphReader\GraphReader\bin\Release\GraphReader.exe
+C:\Users\Denis\YandexDisk\Работа\GraphReader\GraphReader\bin\Release\GraphReader.pdb
+C:\Users\Denis\YandexDisk\Работа\GraphReader\GraphReader\obj\Release\GraphReader.Form3.resources
+C:\Users\Denis\YandexDisk\Работа\GraphReader\GraphReader\obj\Release\GraphReader.Form4.resources
+C:\Users\Denis\YandexDisk\Работа\GraphReader\GraphReader\obj\Release\GraphReader.MainForm.resources
+C:\Users\Denis\YandexDisk\Работа\GraphReader\GraphReader\obj\Release\GraphReader.TextReader.resources
+C:\Users\Denis\YandexDisk\Работа\GraphReader\GraphReader\obj\Release\GraphReader.TableWriter.resources
+C:\Users\Denis\YandexDisk\Работа\GraphReader\GraphReader\obj\Release\GraphReader.NumbPad.resources
+C:\Users\Denis\YandexDisk\Работа\GraphReader\GraphReader\bin\Release\CheckBoxComboBox.dll
+C:\Users\Denis\YandexDisk\Работа\GraphReader\GraphReader\bin\Release\CheckComboBox.dll
+C:\Users\Denis\YandexDisk\Работа\GraphReader\GraphReader\bin\Release\CheckBoxComboBox.pdb
+C:\Users\123\YandexDisk\Работа\GraphReader\GraphReader\bin\Release\CheckComboBox.dll
+C:\Users\123\YandexDisk\Работа\GraphReader\GraphReader\bin\Release\CheckBoxComboBox.pdb
+C:\Users\123\YandexDisk\Работа\GraphReader\GraphReader\obj\Release\GraphReader.Form3.resources
+C:\Users\123\YandexDisk\Работа\GraphReader\GraphReader\obj\Release\GraphReader.MainForm.resources
+C:\Users\123\YandexDisk\Работа\GraphReader\GraphReader\obj\Release\GraphReader.NumbPad.resources
+C:\Users\123\YandexDisk\Работа\GraphReader\GraphReader\obj\Release\GraphReader.TextReader.resources
+C:\Users\123\YandexDisk\Работа\GraphReader\GraphReader\obj\Release\GraphReader.Form4.resources
+C:\Users\123\YandexDisk\Работа\GraphReader\GraphReader\obj\Release\GraphReader.TableWriter.resources
+C:\Users\Denis\Documents\Visual Studio 2013\Projects\GraphReader Patch\GraphReader\bin\Release\GraphReader.exe
+C:\Users\Denis\Documents\Visual Studio 2013\Projects\GraphReader Patch\GraphReader\bin\Release\ZedGraph.dll
+C:\Users\Denis\Documents\Visual Studio 2013\Projects\GraphReader Patch\GraphReader\bin\Release\GraphReader.exe.config
+C:\Users\Denis\Documents\Visual Studio 2013\Projects\GraphReader Patch\GraphReader\bin\Release\CheckComboBox.dll
+C:\Users\Denis\Documents\Visual Studio 2013\Projects\GraphReader Patch\GraphReader\obj\Release\GraphReader.ReplaceWindow.resources
+C:\Users\Denis\Documents\Visual Studio 2013\Projects\GraphReader Patch\GraphReader\obj\Release\GraphReader.MainForm.resources
+C:\Users\Denis\Documents\Visual Studio 2013\Projects\GraphReader Patch\GraphReader\obj\Release\GraphReader.NumbPad.resources
+C:\Users\Denis\Documents\Visual Studio 2013\Projects\GraphReader Patch\GraphReader\obj\Release\GraphReader.TextReader.resources
+C:\Users\Denis\Documents\Visual Studio 2013\Projects\GraphReader Patch\GraphReader\obj\Release\GraphReader.FindWindow.resources
+C:\Users\Denis\Documents\Visual Studio 2013\Projects\GraphReader Patch\GraphReader\obj\Release\GraphReader.Properties.Resources.resources
+C:\Users\Denis\Documents\Visual Studio 2013\Projects\GraphReader Patch\GraphReader\obj\Release\GraphReader.TableWriter.resources
+C:\Users\Denis\Documents\Visual Studio 2013\Projects\GraphReader Patch\GraphReader\obj\Release\GraphReader.csproj.GenerateResource.Cache
+C:\Users\Denis\Documents\Visual Studio 2013\Projects\GraphReader Patch\GraphReader\obj\Release\GraphReader.exe
+C:\Users\Denis\Documents\Visual Studio 2013\Projects\GraphReader Patch\GraphReader\obj\Release\GraphReader.pdb
+C:\Users\Denis\Documents\Visual Studio 2013\Projects\GraphReader Patch\GraphReader\bin\Release\GraphReader.pdb
+C:\Users\Denis\Documents\Visual Studio 2013\Projects\GraphReader Patch\GraphReader\obj\Release\GraphReader.csprojResolveAssemblyReference.cache
+C:\Users\123\YandexDisk\Работа\GraphReader Patch\GraphReader\bin\Release\GraphReader.exe.config
+C:\Users\123\YandexDisk\Работа\GraphReader Patch\GraphReader\bin\Release\GraphReader.exe
+C:\Users\123\YandexDisk\Работа\GraphReader Patch\GraphReader\bin\Release\GraphReader.pdb
+C:\Users\123\YandexDisk\Работа\GraphReader Patch\GraphReader\bin\Release\CheckComboBox.dll
+C:\Users\123\YandexDisk\Работа\GraphReader Patch\GraphReader\obj\Release\GraphReader.csprojResolveAssemblyReference.cache
+C:\Users\123\YandexDisk\Работа\GraphReader Patch\GraphReader\obj\Release\GraphReader.ReplaceWindow.resources
+C:\Users\123\YandexDisk\Работа\GraphReader Patch\GraphReader\obj\Release\GraphReader.MainForm.resources
+C:\Users\123\YandexDisk\Работа\GraphReader Patch\GraphReader\obj\Release\GraphReader.NumbPad.resources
+C:\Users\123\YandexDisk\Работа\GraphReader Patch\GraphReader\obj\Release\GraphReader.TextReader.resources
+C:\Users\123\YandexDisk\Работа\GraphReader Patch\GraphReader\obj\Release\GraphReader.FindWindow.resources
+C:\Users\123\YandexDisk\Работа\GraphReader Patch\GraphReader\obj\Release\GraphReader.Properties.Resources.resources
+C:\Users\123\YandexDisk\Работа\GraphReader Patch\GraphReader\obj\Release\GraphReader.TableWriter.resources
+C:\Users\123\YandexDisk\Работа\GraphReader Patch\GraphReader\obj\Release\GraphReader.csproj.GenerateResource.Cache
+C:\Users\123\YandexDisk\Работа\GraphReader Patch\GraphReader\obj\Release\GraphReader.exe
+C:\Users\123\YandexDisk\Работа\GraphReader Patch\GraphReader\obj\Release\GraphReader.pdb
+C:\Users\Denis\YandexDisk\Работа\GraphReader Patch\GraphReader\bin\Release\GraphReader.exe.config
+C:\Users\Denis\YandexDisk\Работа\GraphReader Patch\GraphReader\bin\Release\GraphReader.exe
+C:\Users\Denis\YandexDisk\Работа\GraphReader Patch\GraphReader\bin\Release\GraphReader.pdb
+C:\Users\Denis\YandexDisk\Работа\GraphReader Patch\GraphReader\bin\Release\CheckBoxComboBox.dll
+C:\Users\Denis\YandexDisk\Работа\GraphReader Patch\GraphReader\bin\Release\CheckComboBox.dll
+C:\Users\Denis\YandexDisk\Работа\GraphReader Patch\GraphReader\bin\Release\CheckBoxComboBox.pdb
+C:\Users\Denis\YandexDisk\Работа\GraphReader Patch\GraphReader\obj\Release\GraphReader.csprojResolveAssemblyReference.cache
+C:\Users\Denis\YandexDisk\Работа\GraphReader Patch\GraphReader\obj\Release\GraphReader.ReplaceWindow.resources
+C:\Users\Denis\YandexDisk\Работа\GraphReader Patch\GraphReader\obj\Release\GraphReader.MainForm.resources
+C:\Users\Denis\YandexDisk\Работа\GraphReader Patch\GraphReader\obj\Release\GraphReader.NumbPad.resources
+C:\Users\Denis\YandexDisk\Работа\GraphReader Patch\GraphReader\obj\Release\GraphReader.TextReader.resources
+C:\Users\Denis\YandexDisk\Работа\GraphReader Patch\GraphReader\obj\Release\GraphReader.FindWindow.resources
+C:\Users\Denis\YandexDisk\Работа\GraphReader Patch\GraphReader\obj\Release\GraphReader.Properties.Resources.resources
+C:\Users\Denis\YandexDisk\Работа\GraphReader Patch\GraphReader\obj\Release\GraphReader.TableWriter.resources
+C:\Users\Denis\YandexDisk\Работа\GraphReader Patch\GraphReader\obj\Release\GraphReader.csproj.GenerateResource.Cache
+C:\Users\Denis\YandexDisk\Работа\GraphReader Patch\GraphReader\obj\Release\GraphReader.exe
+C:\Users\Denis\YandexDisk\Работа\GraphReader Patch\GraphReader\obj\Release\GraphReader.pdb
