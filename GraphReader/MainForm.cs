@@ -46,8 +46,8 @@ namespace GraphReader
         System.Windows.Forms.CheckBox[] CheckBoxRange = new System.Windows.Forms.CheckBox[3];
         int SizeHeight;
         int SizeWidth;
-        public const string version = "1.5";
-        public string date = "08.11.17";
+        public const string version = "1.6";
+        public string date = "17.11.17";
 
         #region ProgramInitialization
         public MainForm()

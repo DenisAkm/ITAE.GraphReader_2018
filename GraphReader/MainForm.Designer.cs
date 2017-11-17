@@ -1139,7 +1139,7 @@ namespace GraphReader
             this.comboBox1.Items.AddRange(new object[] {
             "Точка",
             "Запятая"});
-            this.comboBox1.Location = new System.Drawing.Point(197, 156);
+            this.comboBox1.Location = new System.Drawing.Point(197, 155);
             this.comboBox1.MaxDropDownItems = 2;
             this.comboBox1.Name = "comboBox1";
             this.comboBox1.Size = new System.Drawing.Size(142, 24);
