@@ -28,38 +28,37 @@ namespace GraphReader.Classes
         public float MedianMin;
         public float MiddleMax;
         public float MiddleMin;
-        public DataElement(string title, int nrows)
-        {
-            Title = title;
-            
-            Rows = nrows;
-            Values = new float[nrows, 2];            
-        }
+        public int xColumn;
+        public int yColumn;
+        
 
-        public DataElement(StringTable table, int getColumn)
+        public DataElement(StringTable table, int getColumnX, int getColumnY)
         {
-            Title = "Get from table";
+            Title = table.Name;
+            xColumn = getColumnX;
+            yColumn = getColumnY;
             Rows = table.RowsCount;
             Values = new float[Rows, 2];
             for (int i = 0; i < Rows; i++)
             {
-                Values[i, 0] = Convert.ToSingle(table.Cell[0, i].Replace('\0', '.').Replace(".", ","));
-                Values[i, 1] = Convert.ToSingle(table.Cell[getColumn, i].Replace('\0', '.').Replace(".", ","));
+                Values[i, 0] = Convert.ToSingle(table.Cell[getColumnX, i].Replace('\0', '.').Replace(".", ","));
+                Values[i, 1] = Convert.ToSingle(table.Cell[getColumnY, i].Replace('\0', '.').Replace(".", ","));
             }
             FindMinMax();
         }
         public void Compile(float start, float finish, float step)
-        {
-            Sectors = Convert.ToInt32(Math.Ceiling((finish - start) / step));
-            Median = new float[Sectors];
-            Middle = new float[Sectors];
+        {            
             Start = start;
             Finish = finish;
             Step = step;
-            
 
             if (Prove())
             {
+                Sectors = Convert.ToInt32(Math.Ceiling((finish - start) / step));
+                Median = new float[Sectors];
+                Middle = new float[Sectors];
+                
+
                 Break = false;
                 ArithmeticMean();
                 if (!Break)
@@ -117,13 +116,11 @@ namespace GraphReader.Classes
         private bool Prove()
         {
             bool answer = true;
-            
            
-
             String mess = "Установленный диапазон рассчета выходит за границы считанных данных. Поменяйте границы или проверьте формат данных файла.";
             if (Values[0, 0] < Values[Rows - 1, 0])
             {
-                if (Values[0, 0] > Start || Values[Rows - 1, 0] < Finish)
+                if (Values[0, 0] > Start || Values[Rows - 1, 0] < Finish || Finish < Start)
                 {
                     MessageBox.Show(mess, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     answer = false;
@@ -131,7 +128,7 @@ namespace GraphReader.Classes
             }
             if (Values[0, 0] > Values[Rows - 1, 0])
             {
-                if (Values[0, 0] < Finish || Values[Rows - 1, 0] > Start)
+                if (Values[0, 0] < Finish || Values[Rows - 1, 0] > Start || Finish > Start)
                 {
                     MessageBox.Show(mess, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     answer = false;
@@ -243,7 +240,7 @@ namespace GraphReader.Classes
         }
         private void Medianvalue()
         {
-            List<Single> buff = new List<float>();            
+            List<Single> buff = new List<float>();           
 
             int k = 1;
 

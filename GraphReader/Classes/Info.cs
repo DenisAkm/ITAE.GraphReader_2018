@@ -6,21 +6,24 @@ using System.Threading.Tasks;
 
 namespace GraphReader.Classes
 {
-    class Info
+    public class Info
     {
         List<String> Title;
                 
         List<Single> MaxList;
         List<Single> MinList;
-
+        List<int> ColX;
+        List<int> ColY;
         public Single Max;
         public Single Min;
-
+        
         public Info()
         {
             Title = new List<string>();
             MaxList = new List<float>();
-            MinList = new List<float>();            
+            MinList = new List<float>();
+            ColX = new List<int>();
+            ColY = new List<int>();
         }
         //private void AddMedian(String title, Single start, Single finish, Single step)
         //{
@@ -36,12 +39,24 @@ namespace GraphReader.Classes
         //    FinishList.Add(finish);
         //    StepList.Add(step);
         //}
-        public void Add(String title, Single min, Single max)
+        public void Add(DataElement elementInfo)
         {
-            Title.Add(title);            
+            Title.Add(elementInfo.Title);
+            ColX.Add(elementInfo.xColumn);
+            ColY.Add(elementInfo.yColumn);
+            MinList.Add(elementInfo.Min);
+            MaxList.Add(elementInfo.Max);            
 
+            FindMax();
+            FindMin();
+        }
+        public void Add(string title, int xCol, int yCol, float min, float max)
+        {
+            Title.Add(title);
+            ColX.Add(xCol);
+            ColY.Add(yCol);
             MinList.Add(min);
-            MaxList.Add(max);            
+            MaxList.Add(max);
 
             FindMax();
             FindMin();
@@ -85,6 +100,8 @@ namespace GraphReader.Classes
             Title.RemoveAt(t);
             MinList.RemoveAt(t);
             MaxList.RemoveAt(t);
+            ColX.RemoveAt(t);
+            ColY.RemoveAt(t);
 
             FindMax();
             FindMin();
@@ -97,6 +114,8 @@ namespace GraphReader.Classes
             MinList.Clear();
             Max = new float();
             Min = new float();
+            ColX.Clear();
+            ColY.Clear();
         }
 
         public bool Exist(string name)
@@ -110,6 +129,30 @@ namespace GraphReader.Classes
                 }
             }
             return answer;
+        }
+        
+        public int GetX(int k)
+        {
+            return ColX[k];
+        }
+
+        public int GetY(int k)
+        {
+            return ColY[k];
+        }
+
+        public int Number(string name)
+        {
+            int number = 0;
+            for (int i = 0; i < Title.Count; i++)
+            {
+                if (name == Title[i])
+                {
+                    number = i;
+                    break;
+                }
+            }
+            return number;
         }
     }
 }

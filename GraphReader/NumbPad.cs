@@ -17,14 +17,14 @@ namespace GraphReader
         int SelectedColumn;
         MainForm mainForm;        
         string[] ColNames;
-        List<StringTable> DataStore = new List<StringTable>();
+        List<DataElement2> DataStore = new List<DataElement2>();
 
         public NumbPad(MainForm mf)
         {
             mainForm = mf;
             InitializeComponent();            
             InitializeCheckComboBox();
-            InitializeDataStore();
+            InitializeDataStore(mainForm.LoadedData);
             InitializeColumnsList();
             InitializeComboBox();
         }
@@ -36,9 +36,9 @@ namespace GraphReader
             int max = 0;
             for (int i = 0; i < DataStore.Count; i++)
             {
-                if (DataStore[i].ColomnsCount > max)
+                if (DataStore[i].ColumnsCount > max)
                 {
-                    max = DataStore[i].ColomnsCount;
+                    max = DataStore[i].ColumnsCount;
                 }
             }
 
@@ -54,34 +54,30 @@ namespace GraphReader
         private void InitializeCheckComboBox()
         {
             //Загрузка списка файлов по адресам
-            for (int i = 1; i < mainForm.treeView1.Nodes.Count; i++)
-			{
-                string name = mainForm.treeView1.Nodes[i].Text;                
-                checkBoxComboBox1.Items.Add(name.Remove(name.LastIndexOf(".")).Substring(name.LastIndexOf("\\") + 1));                
-			}
+            for (int i = 0; i < mainForm.treeViewFilesBrowser.Nodes.Count; i++)
+            {
+                string name = mainForm.treeViewFilesBrowser.Nodes[i].Tag.ToString();
+                checkBoxComboBox1.Items.Add(name.Remove(name.LastIndexOf(".")).Substring(name.LastIndexOf("\\") + 1));
+            }
 
             //Отметить выделенный файл
-            if (!(mainForm.treeView1.SelectedNode == null))
-            {
-                checkBoxComboBox1.CheckBoxItems[mainForm.treeView1.SelectedNode.Index - 1].Checked = true;                
-            }
+            //if (mainForm.treeViewFilesBrowser.SelectedNode != null)//&& mainForm.listViewGraphBrowser.SelectedItems[0].Text != "(Выделить все)"
+            //{
+            //    for (int i = 0; i < mainForm.treeViewFilesBrowser.SelectedItems.Count; i++)
+            //    {
+            //        if (mainForm.listViewGraphBrowser.SelectedItems[i].Checked)
+            //        {
+            //            checkBoxComboBox1.CheckBoxItems[i].Checked = true;
+            //        }                    
+            //    }                
+            //}
         }
 
-        private void InitializeDataStore()
+        private void InitializeDataStore(List<DataElement2> data)//
         {
-            for (int k = 1; k < mainForm.treeView1.Nodes.Count; k++)
+            for (int k = 0; k < mainForm.LoadedData.Count; k++)
             {
-                mainForm.FileReading(mainForm.treeView1.Nodes[k].Text);
-
-                StringTable data = new StringTable(mainForm.StringTable.Name, mainForm.StringTable.ColomnsCount, mainForm.StringTable.RowsCount);
-                for (int i = 0; i < mainForm.StringTable.RowsCount; i++)
-                {
-                    for (int j = 0; j < mainForm.StringTable.ColomnsCount; j++)
-                    {
-                        data.Cell[j, i] = mainForm.StringTable.Cell[j, i];
-                    }
-                }
-                DataStore.Add(data);
+                DataStore.Add(mainForm.LoadedData[k]);
             }
         }
 
@@ -167,16 +163,16 @@ namespace GraphReader
                             {
                                 if (GateCondition(DataStore[k], i))
                                 {
-                                    newValue = Convert.ToSingle(DataStore[k].Cell[comboBox1.SelectedIndex, i].Replace(".", ",")) + changer;
-                                    DataStore[k].Cell[comboBox1.SelectedIndex, i] = Convert.ToString(newValue);
+                                    newValue = Convert.ToSingle(DataStore[k][comboBox1.SelectedIndex, i].Replace(".", ",")) + changer;
+                                    DataStore[k][comboBox1.SelectedIndex, i] = Convert.ToString(newValue);
                                 }
                             }
-                            mainForm.StringTable = DataStore[k];
-                            mainForm.FirstLoadRows();
-                            LoadTextBoxInfo();
+                            //mainForm.StringTable = DataStore[k];
+                            //mainForm.FirstLoadRows();                            
                             DataStore[k].Changed = true;                         
                         }                        
                     }
+                    LoadTextBoxInfo();
                 }
             }
             catch (Exception h)
@@ -200,16 +196,17 @@ namespace GraphReader
                             {
                                 if (GateCondition(DataStore[k], i))
                                 {
-                                    newValue = Convert.ToSingle(DataStore[k].Cell[comboBox1.SelectedIndex, i].Replace(".", ",")) * changer;
-                                    DataStore[k].Cell[comboBox1.SelectedIndex, i] = Convert.ToString(newValue);
+                                    newValue = Convert.ToSingle(DataStore[k][comboBox1.SelectedIndex, i].Replace(".", ",")) * changer;
+                                    DataStore[k][comboBox1.SelectedIndex, i] = Convert.ToString(newValue);
                                 }
                             }
-                            mainForm.StringTable = DataStore[k];
-                            mainForm.FirstLoadRows();
-                            LoadTextBoxInfo();
+                            //mainForm.StringTable = DataStore[k];
+                            //mainForm.FirstLoadRows();
+                            
                             DataStore[k].Changed = true;
                         }
                     }
+                    LoadTextBoxInfo();
                 }
             }
             catch (Exception h)
@@ -236,37 +233,39 @@ namespace GraphReader
                                     counter++;
                                 }
                             }
-                            StringTable st = new StringTable(DataStore[k].Name, DataStore[k].ColomnsCount, counter);
+                            StringTable st = new StringTable(DataStore[k].Name, DataStore[k].ColumnsCount, counter);
                             counter = 0; 
                             for (int i = 0; i < DataStore[k].RowsCount; i++)
                             {
                                 if (GateCondition(DataStore[k], i))
                                 {
-                                    for (int j = 0; j < DataStore[k].ColomnsCount; j++)
+                                    for (int j = 0; j < DataStore[k].ColumnsCount; j++)
                                     {
-                                        st.Cell[j, counter] = DataStore[k].Cell[j, i];                                        
+                                        st.Cell[j, counter] = DataStore[k][j, i];                                        
                                     }
                                     counter++;
                                 }
                             }
 
 
-                            DataStore[k] = new StringTable(st.Name, st.ColomnsCount, st.RowsCount);
+                            DataStore[k].Table = new string[st.ColomnsCount, st.RowsCount];
+                            DataStore[k].Name = st.Name;
                             
                             for (int i = 0; i < st.RowsCount; i++)
                             {
                                 for (int j = 0; j < st.ColomnsCount; j++)
                                 {
-                                    DataStore[k].Cell[j, i] = st.Cell[j, i];
+                                    DataStore[k][j, i] = st.Cell[j, i];
                                 }                                
                             }
                             
-                            mainForm.StringTable = DataStore[k];
-                            mainForm.FirstLoadRows();
-                            LoadTextBoxInfo();
+                            
                             DataStore[k].Changed = true;
                         }
+                        //mainForm.StringTable = DataStore[k];
+                        //mainForm.FirstLoadRows();                        
                     }
+                    LoadTextBoxInfo();
                 }
                 textBoxNumb.Text = "";
             }
@@ -292,14 +291,13 @@ namespace GraphReader
                                 {
                                     if (GateCondition(DataStore[k], i))
                                     {
-                                        Double value = Convert.ToDouble(DataStore[k].Cell[comboBox1.SelectedIndex, i].Replace(".", ","));
+                                        Double value = Convert.ToDouble(DataStore[k][comboBox1.SelectedIndex, i].Replace(".", ","));
                                         Double newVal = 20 * Math.Log10(value);
-                                        DataStore[k].Cell[comboBox1.SelectedIndex, i] = Convert.ToString(newVal);
+                                        DataStore[k][comboBox1.SelectedIndex, i] = Convert.ToString(newVal);
                                     }
                                 }
-                                mainForm.StringTable = DataStore[k];
-                                mainForm.FirstLoadRows();
-                                LoadTextBoxInfo();
+                                //mainForm.StringTable = DataStore[k];
+                                //mainForm.FirstLoadRows();                                
                                 DataStore[k].Changed = true;
                             }
                             else
@@ -308,6 +306,7 @@ namespace GraphReader
                             }
                         }
                     }
+                    LoadTextBoxInfo();
                 }
                 textBoxNumb.Text = "";
             }
@@ -332,16 +331,16 @@ namespace GraphReader
                             {
                                 if (GateCondition(DataStore[k], i))
                                 {
-                                    float val = Convert.ToSingle(DataStore[k].Cell[comboBox1.SelectedIndex, i].Replace(".", ","));
-                                    DataStore[k].Cell[comboBox1.SelectedIndex, i] = Convert.ToString(val / max);
+                                    float val = Convert.ToSingle(DataStore[k][comboBox1.SelectedIndex, i].Replace(".", ","));
+                                    DataStore[k][comboBox1.SelectedIndex, i] = Convert.ToString(val / max);
                                 }
                             }
-                            mainForm.StringTable = DataStore[k];
-                            mainForm.FirstLoadRows();
-                            LoadTextBoxInfo();
+                            //mainForm.StringTable = DataStore[k];
+                            //mainForm.FirstLoadRows();                            
                             DataStore[k].Changed = true;
                         }
                     }
+                    LoadTextBoxInfo();
                 }
                 textBoxNumb.Text = "";
             }
@@ -366,17 +365,17 @@ namespace GraphReader
                             {
                                 if (GateCondition(DataStore[k], i))
                                 {
-                                    float value = Convert.ToSingle(DataStore[k].Cell[comboBox1.SelectedIndex, i].Replace(".", ","));
+                                    float value = Convert.ToSingle(DataStore[k][comboBox1.SelectedIndex, i].Replace(".", ","));
                                     string newVal = String.Format(CallFormat(numb), value);
-                                    DataStore[k].Cell[comboBox1.SelectedIndex, i] = newVal;
+                                    DataStore[k][comboBox1.SelectedIndex, i] = newVal;
                                 }
                             }
-                            mainForm.StringTable = DataStore[k];
-                            mainForm.FirstLoadRows();
-                            LoadTextBoxInfo();
+                            //mainForm.StringTable = DataStore[k];
+                            //mainForm.FirstLoadRows();                            
                             DataStore[k].Changed = true;
                         }
                     }
+                    LoadTextBoxInfo();
                 }
             }
             catch (Exception h)
@@ -397,35 +396,36 @@ namespace GraphReader
                         {
                             if (checkBoxComboBox1.CheckBoxItems[k].Checked)
                             {
-                                StringTable st = new StringTable(DataStore[k].Name, DataStore[k].ColomnsCount - 1, DataStore[k].RowsCount);
+                                StringTable st = new StringTable(DataStore[k].Name, DataStore[k].ColumnsCount - 1, DataStore[k].RowsCount);
 
                                 for (int i = 0; i < DataStore[k].RowsCount; i++)
                                 {
                                     int col = 0;
-                                    for (int j = 0; j < DataStore[k].ColomnsCount; j++)
+                                    for (int j = 0; j < DataStore[k].ColumnsCount; j++)
                                     {
                                         if (j != SelectedColumn)
                                         {
-                                            st.Cell[col, i] = DataStore[k].Cell[j, i];
+                                            st.Cell[col, i] = DataStore[k][j, i];
                                             col++;
                                         }
                                     }
                                 }
 
 
-                                DataStore[k] = new StringTable(st.Name, st.ColomnsCount, st.RowsCount);
+                                DataStore[k].Table = new string[st.ColomnsCount, st.RowsCount];
+                                DataStore[k].Name = st.Name;
 
                                 for (int i = 0; i < st.RowsCount; i++)
                                 {
                                     for (int j = 0; j < st.ColomnsCount; j++)
                                     {
-                                        DataStore[k].Cell[j, i] = st.Cell[j, i];
+                                        DataStore[k][j, i] = st.Cell[j, i];
                                     }
                                 }
 
-                                mainForm.NumberOfColumns = DataStore[k].ColomnsCount;
-                                mainForm.StringTable = DataStore[k];
-                                mainForm.FirstLoadRows();                                
+                                mainForm.NumberOfColumns = DataStore[k].ColumnsCount;
+                                //mainForm.StringTable = DataStore[k];
+                                //mainForm.FirstLoadRows();                                
                                 DataStore[k].Changed = true;
                             }
                         }
@@ -444,51 +444,81 @@ namespace GraphReader
                 MessageBox.Show(h.ToString(), "Что-то пошло не так", MessageBoxButtons.OK);
             }
         }
-        private void buttonUnion_Click(object sender, EventArgs e)
-        {                       
+
+        private void buttonSwipe_Click(object sender, EventArgs e)
+        {
             try
-            {
-                textBoxNumb.Text = "0";
+            {                
                 if (!(CheckEnteredValue()))
                 {
-                    List<List<float>> array = new List<List<float>>();
-                    string adress = "";
                     for (int k = 0; k < checkBoxComboBox1.CheckBoxItems.Count; k++)
                     {
                         if (checkBoxComboBox1.CheckBoxItems[k].Checked)
-                        {
-                            adress = DataStore[k].Name;
-                            for (int i = 0; i < DataStore[k].RowsCount; i++)
+                        {                            
+                            StringTable st = new StringTable(DataStore[k].Name, DataStore[k].ColumnsCount, DataStore[k].RowsCount);
+                            
+                            
+                            int col = comboBox1.SelectedIndex;
+                            float val = Convert.ToSingle(textBoxNumb.Text);
+                            int brow = FindBreakRow(DataStore[k], col);
+
+                            int counter = 0;
+                            for (int i = brow; i < DataStore[k].RowsCount; i++)
                             {
-                                float a = Convert.ToSingle(DataStore[k].Cell[0, i].Replace(".",","));
-                                float b = Convert.ToSingle(DataStore[k].Cell[comboBox1.SelectedIndex, i].Replace(".", ","));
-                                List<Single> row = new List<float> { a, b };
-                                array.Add(row);
+                                for (int j = 0; j < DataStore[k].ColumnsCount; j++)
+                                {
+                                    if (j == col)
+                                    {
+                                        float newValue = Convert.ToSingle(DataStore[k][col, i].Replace(".", ",")) - val;
+                                        st.Cell[j, counter] = Convert.ToString(newValue);
+                                    }
+                                    else
+                                    {
+                                        st.Cell[j, counter] = DataStore[k][j, i];
+                                    }
+                                    
+                                }
+                                counter++;
                             }
+
+
+                            for (int i = 0; i < brow; i++)
+                            {
+                                for (int j = 0; j < DataStore[k].ColumnsCount; j++)
+                                {
+                                    if (j == col)
+                                    {
+                                        float newValue = Convert.ToSingle(DataStore[k][col, i].Replace(".", ",")) + val;
+                                        st.Cell[j, counter] = Convert.ToString(newValue);
+                                    }
+                                    else
+                                    {
+                                        st.Cell[j, counter] = DataStore[k][j, i];
+                                    }
+                                    
+                                }
+                                counter++;
+                            }
+
+
+                            DataStore[k].Table = new string[st.ColomnsCount, st.RowsCount];
+                            DataStore[k].Name = st.Name;
+
+                            for (int i = 0; i < st.RowsCount; i++)
+                            {
+                                for (int j = 0; j < st.ColomnsCount; j++)
+                                {
+                                    DataStore[k][j, i] = st.Cell[j, i];
+                                }
+                            }
+
+
+                            DataStore[k].Changed = true;
                         }
-                    }                    
-                    List<List<float>> sortedList = array.OrderBy(x => x[1]).OrderBy(y => y[0]).ToList();
-
-                    String dir = Path.GetDirectoryName(adress);
-                    String name = Path.GetFileName(adress);
-                    String newAdress = Path.Combine(dir, "Union_" + name + ".txt");
-
-                    int extN = 1;
-                    while (File.Exists(newAdress))
-                    {
-                        newAdress = Path.Combine(dir, "Union_" + name + "(" + extN + ")");
-                        extN++;
+                        //mainForm.StringTable = DataStore[k];
+                        //mainForm.FirstLoadRows();
                     }
-
-                    StreamWriter sw = new StreamWriter(newAdress);
-
-                    for (int l = 0; l < sortedList.Count; l++)
-                    {
-                        sw.WriteLine(sortedList[l][0] + "\t" + sortedList[l][1]);
-                    }
-                    sw.Close();
-
-                    MessageBox.Show("Выбранные графики объеденены и сохранены как" + "\n" + newAdress);
+                    LoadTextBoxInfo();
                 }
                 textBoxNumb.Text = "";
             }
@@ -498,9 +528,24 @@ namespace GraphReader
             }
         }
 
+        
+
         #endregion
 
         #region Methods
+        private int FindBreakRow(DataElement2 st, int col)
+        {
+            int numb = -1;
+            for (int i = 0; i < st.RowsCount; i++)
+            {
+                if (Convert.ToSingle(st[col, i].Replace(".", ",")) > 0)
+                {
+                    numb = i;
+                    break;
+                }
+            }
+            return numb;
+        }
         private bool CheckEnteredValue()
         {
             if (textBoxNumb.Text == "-")
@@ -559,7 +604,7 @@ namespace GraphReader
             
             return error;
         }
-        private bool GateCondition(StringTable tab, int i)
+        private bool GateCondition(DataElement2 tab, int i)
         {
             bool answer = false;
 
@@ -575,7 +620,7 @@ namespace GraphReader
             }
             if (radioButton2.Checked)
             {
-                float celldata = Convert.ToSingle(tab.Cell[comboBox1.SelectedIndex, i].Replace(".", ","));
+                float celldata = Convert.ToSingle(tab[comboBox1.SelectedIndex, i].Replace(".", ","));
                 float left = Convert.ToSingle(textBoxStart.Text.Replace(".", ","));
                 float right = Convert.ToSingle(textBoxFinish.Text.Replace(".", ","));
                 if (celldata >= left && celldata <= right)
@@ -585,11 +630,11 @@ namespace GraphReader
             }
             return answer;
         }
-        private bool OnlyPositive(StringTable tab, int col)
+        private bool OnlyPositive(DataElement2 tab, int col)
         {
             for (int i = 0; i < tab.RowsCount; i++)
             {
-                float val = Convert.ToSingle(tab.Cell[col, i].Replace(".", ","));
+                float val = Convert.ToSingle(tab[col, i].Replace(".", ","));
                 if (val < 0)
                 {
                     return false;
@@ -597,12 +642,12 @@ namespace GraphReader
             }
             return true;        
         }
-        private float FindMax(StringTable st, int col)
+        private float FindMax(DataElement2 st, int col)
         {
-            float max = Convert.ToSingle(st.Cell[col, 0].Replace(".", ","));
+            float max = Convert.ToSingle(st[col, 0].Replace(".", ","));
             for (int i = 1; i < st.RowsCount; i++)
             {
-               float val = Convert.ToSingle(st.Cell[col, i].Replace(".", ","));
+               float val = Convert.ToSingle(st[col, i].Replace(".", ","));
                if (val > max)
                {
                    max = val;
@@ -639,7 +684,7 @@ namespace GraphReader
                     {
                         if (checkBoxComboBox1.CheckBoxItems[i].Checked)
                         {
-                            DataElement datElement = new DataElement(DataStore[i], comboBox1.SelectedIndex);
+                            //DataElement datElement = new DataElement(DataStore[i], 0, comboBox1.SelectedIndex);
                             if (count == 0)
                             {
                                 count = DataStore[i].RowsCount;
@@ -663,15 +708,15 @@ namespace GraphReader
                 }
                 if (radioButton2.Checked)
                 {
-                    List<float> maximum = new List<float>();
-                    List<float> minimum = new List<float>();
+                    List<double> maximum = new List<double>();
+                    List<double> minimum = new List<double>();
                     for (int i = 0; i < DataStore.Count; i++)
                     {
                         if (checkBoxComboBox1.CheckBoxItems[i].Checked)
-                        {                            
-                            DataElement datElement = new DataElement(DataStore[i], comboBox1.SelectedIndex);
-                            float max = datElement.Max;
-                            float min = datElement.Min;
+                        {
+                            DataElement2 datElement = DataStore[i];
+                            double max = datElement.Max;
+                            double min = datElement.Min;
                             maximum.Add(max);
                             minimum.Add(min);
                         }
@@ -684,8 +729,8 @@ namespace GraphReader
                     }
                     else
                     {
-                        float max = maximum[0];
-                        float min = minimum[0];
+                        double max = maximum[0];
+                        double min = minimum[0];
                         for (int i = 1; i < maximum.Count; i++)
                         {
                             if (max < maximum[i])
@@ -709,7 +754,7 @@ namespace GraphReader
             {
                 if (checkBoxComboBox1.CheckBoxItems[i].Checked)
                 {
-                    if (DataStore[i].ColomnsCount < comboBox1.SelectedIndex + 1)
+                    if (DataStore[i].ColumnsCount < comboBox1.SelectedIndex + 1)
                     {
                         return false;
                     }
@@ -725,9 +770,9 @@ namespace GraphReader
             {
                 if (checkBoxComboBox1.CheckBoxItems[i].Checked)
                 {
-                    if (DataStore[i].ColomnsCount < min)
+                    if (DataStore[i].ColumnsCount < min)
                     {
-                        min = DataStore[i].ColomnsCount;
+                        min = DataStore[i].ColumnsCount;
                     }
                 }
             }
@@ -829,23 +874,35 @@ namespace GraphReader
         {
             for (int k = 0; k < DataStore.Count; k++)
             {
-                using (StreamWriter sw = new StreamWriter(DataStore[k].Name))
+                try
                 {
-                    for (int i = 0; i < DataStore[k].RowsCount; i++)
+                    using (StreamWriter sw = new StreamWriter(DataStore[k].Name))
                     {
-                        string line = "";
-                        for (int j = 0; j < DataStore[k].ColomnsCount; j++)
+                        for (int i = 0; i < DataStore[k].RowsCount; i++)
                         {
-                            if (j != 0)
+                            string line = "";
+                            for (int j = 0; j < DataStore[k].ColumnsCount; j++)
                             {
-                                line += "\t";
+                                if (j != 0)
+                                {
+                                    line += "\t";
+                                }
+                                
+                                line += DataStore[k][j, i];                                                           
                             }
-                            line += DataStore[k].Cell[j, i].Replace(".", ",");
+                            if (SettingsForm.DecimalDelimeter == "Точка")
+                            {                                
+                                line = line.Replace(",", ".");                                
+                            }     
+                            sw.WriteLine(line);
                         }
-                        sw.WriteLine(line);
                     }
+                    DataStore[k].Changed = false;
                 }
-                DataStore[k].Changed = false;
+                catch (Exception h)
+                {
+                    MessageBox.Show(h.ToString(), "Что-то пошло не так", MessageBoxButtons.OK);
+                }
             }
         }
 
@@ -863,13 +920,13 @@ namespace GraphReader
                             for (int i = 0; i < DataStore[k].RowsCount; i++)
                             {
                                 string line = "";
-                                for (int j = 0; j < DataStore[k].ColomnsCount; j++)
+                                for (int j = 0; j < DataStore[k].ColumnsCount; j++)
                                 {
                                     if (j != 0)
                                     {
                                         line += "\t";
                                     }
-                                    line += DataStore[k].Cell[j, i].Replace(".", ",");
+                                    line += DataStore[k][j, i].Replace(".", ",");
                                 }
                                 sw.WriteLine(line);
                             }
@@ -896,11 +953,16 @@ namespace GraphReader
             }
         }
 
-        
-
         #endregion 
 
+        private void textBoxFinish_TextChanged(object sender, EventArgs e)
+        {
+            int a = 0;
+            a++;
+        }
+
         
+
 
 
 

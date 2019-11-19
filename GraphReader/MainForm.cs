@@ -1,42 +1,59 @@
 ﻿using GraphReader.Classes;
-using Microsoft.Office.Interop.Word;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Xceed.Words.NET;
 using ZedGraph;
 
 namespace GraphReader
 {
     public partial class MainForm : Form
     {
+        #region Singleton Pattern
+        private static MainForm instance = null;
+        public static MainForm Instance
+        {
+            get
+            {
+                if (instance == null)
+                {
+                    instance = new MainForm(new string[0]);
+                }
+                return instance;
+            }
+        }
+        #endregion
+        //use
+        RadioButton[] radioSet;
+        public List<DataElement2> LoadedData = new List<DataElement2>();
+        public const string version = "2.0";
+        public string date = "04.09.19";
+        private string LastFileSelected = "";
+        //
+
+        //undefined        
         private TextReader TextReader;
         private TableWriter TableWriter;
         private NumbPad NumbPad;
-        private Info GraphInfo = new Info();
-        bool breaking;
+        public Info GraphInfo = new Info();
+        public bool breaking;
         private int lastAddedValue = 0;
         private DateTime lastLoading;
         private int firstVisibleRow;
         private ScrollBars gridScrollBars;
-        int NumberOfLines = 0;
-        int SkipLines = 0;
-        public int NumberOfColumns;
-        int MassivesDataLines;
-        int ScrollRange = 500;
-        String Delimeter;
-        public DataElement DataBase;
-        public StringTable StringTable = new StringTable();
-        List<String> DataMassive;
+
         private GraphPane myPane = new GraphPane();
         private int LastFileIndex = -1;
-        private String LastFileAdress = "";
+
+        
         private bool Checking = false;
         float Start;
         float Finish;
@@ -46,60 +63,80 @@ namespace GraphReader
         System.Windows.Forms.CheckBox[] CheckBoxRange = new System.Windows.Forms.CheckBox[3];
         int SizeHeight;
         int SizeWidth;
-        public const string version = "1.5";
-        public string date = "08.11.17";
+        public bool listViewGraphBrowserItemChecked_trigger = true;
+        public bool radioButtonModifierChanged_trigger = true;
+
+        int ScrollRange = 500;
+        
+
+
+        //old
+        public DataElement DataBase;
+        public StringTable StringTable = new StringTable();
+        private String LastFileAdress = "";
+        public int NumberOfColumns;
+
+
+        
 
         #region ProgramInitialization
-        public MainForm()
+        public MainForm(string[] files)
         {
             InitializeComponent();
             InitializeDataGrid();
             InitializeGraph();
-            InitializeTreeViewMenu();
+            //InitializeTreeViewMenu();            
 
-            treeView1.Nodes.Clear();
-            TextBoxRange[0] = textBoxStart;
-            TextBoxRange[1] = textBoxFinish;
-            TextBoxRange[2] = textBoxStep;
+            //treeViewGraphBrowser.Nodes.Clear();
+            //TextBoxRange[0] = textBoxStart;
+            //TextBoxRange[1] = textBoxFinish;
+            //TextBoxRange[2] = textBoxStep;
 
-            CheckBoxRange[0] = checkBoxAutoStart;
-            CheckBoxRange[1] = checkBoxAutoFinish;
-            CheckBoxRange[2] = checkBoxAutoStep;
+            //CheckBoxRange[0] = checkBoxAutoStart;
+            //CheckBoxRange[1] = checkBoxAutoFinish;
+            //CheckBoxRange[2] = checkBoxAutoStep;
 
-            comboBox1.SelectedIndex = 0;
-            textBoxExportPath.Text = Environment.CurrentDirectory.ToString();
-        }
+            
+            
+
+            if (files.Length != 0)
+            {
+                LoadFileScenario(files);    
+            }
+            radioSet = new RadioButton[] { radioButtonOriginal, radioButtonMedian, radioButtonMiddle };
+            instance = this;
+        }                
         private void Form1_Load(object sender, EventArgs e)
         {
             this.Text += version;
         }
         private void InitializeTreeViewMenu()
         {
-            ContextMenuStrip menu = new ContextMenuStrip();
+            //ContextMenuStrip menu = new ContextMenuStrip();
 
-            ToolStripMenuItem expandLabel = new ToolStripMenuItem();
-            expandLabel.Text = "Развернуть";
-            expandLabel.Click += new EventHandler(treeView_Expand);
+            //ToolStripMenuItem expandLabel = new ToolStripMenuItem();
+            //expandLabel.Text = "Развернуть";
+            //expandLabel.Click += new EventHandler(treeView_Expand);
 
-            ToolStripMenuItem collapseLabel = new ToolStripMenuItem();
-            collapseLabel.Text = "Cвернуть";
-            collapseLabel.Click += new EventHandler(treeView_Collapse);
+            //ToolStripMenuItem collapseLabel = new ToolStripMenuItem();
+            //collapseLabel.Text = "Cвернуть";
+            //collapseLabel.Click += new EventHandler(treeView_Collapse);
 
-            ToolStripMenuItem addLabel = new ToolStripMenuItem();
-            addLabel.Text = "Открыть/Добавить";
-            addLabel.Click += new EventHandler(treeView_Add);
+            //ToolStripMenuItem addLabel = new ToolStripMenuItem();
+            //addLabel.Text = "Добавить";
+            //addLabel.Click += new EventHandler(treeView_Add);
 
-            ToolStripMenuItem clearLabel = new ToolStripMenuItem();
-            clearLabel.Text = "Очистить список";
-            clearLabel.Click += new EventHandler(treeView_Clear);
+            //ToolStripMenuItem clearLabel = new ToolStripMenuItem();
+            //clearLabel.Text = "Очистить";
+            //clearLabel.Click += new EventHandler(treeView_Clear);
 
-            menu.Items.AddRange(new ToolStripMenuItem[] { addLabel, expandLabel, collapseLabel, clearLabel });
-            treeView1.ContextMenuStrip = menu;
+            //menu.Items.AddRange(new ToolStripMenuItem[] { addLabel, expandLabel, collapseLabel, clearLabel });
+            //treeViewGraphBrowser.ContextMenuStrip = menu;
         }
         private void InitializeDataGrid()
         {
             //load firs 100 rows
-            LoadRows();
+            LoadRows(null);
 
         }
         private void InitializeGraph()
@@ -200,9 +237,6 @@ namespace GraphReader
             LineItem Left_curve = myPane.AddCurve("LeftGate", listLeft, Color.Red, SymbolType.None);
             LineItem Right_curve = myPane.AddCurve("RightGate", listRight, Color.Red, SymbolType.None);
 
-            Left_curve.Tag = "Border";
-            Right_curve.Tag = "Border";
-
             myPane.CurveList[myPane.CurveList.IndexOf("RightGate")].IsVisible = false;
             myPane.CurveList[myPane.CurveList.IndexOf("LeftGate")].IsVisible = false;
 
@@ -219,8 +253,20 @@ namespace GraphReader
         }
         private void InitializeComboBoxes()
         {
-            comboBoxX.SelectedIndex = 0;
-            comboBoxY.SelectedIndex = 1;
+            //if (!Loading)
+            //{
+            //    Loading = true;
+            //    if (comboBoxX.SelectedIndex == -1)
+            //    {
+            //        comboBoxX.SelectedIndex = 0;
+            //    }
+            //    if (comboBoxY.SelectedIndex == -1)
+            //    {
+            //        comboBoxY.SelectedIndex = 1;
+            //    }
+            //    Loading = false;    
+            //}
+            
         }
         private void GraphContextRebuilder(ZedGraphControl sender, ContextMenuStrip menuStrip, System.Drawing.Point mousePt, ZedGraphControl.ContextMenuObjectState objState)
         {
@@ -247,340 +293,7 @@ namespace GraphReader
         #endregion
 
         #region TreeViewFunctions
-        private void treeView_Clear(object sender, EventArgs e)
-        {
-            if (!(treeView1.Nodes.Count == 0))
-            {
-                if (MessageBox.Show("Вы уверены, что хотите очистить список файлов?", "Подтверждение", MessageBoxButtons.YesNo) == System.Windows.Forms.DialogResult.Yes)
-                {
-                    Loading = true;
-                    MassivesDataLines = 0;
-                    LoadEmptyRows();
-                    treeView1.Nodes.Clear();
-                    myPane.CurveList.Clear();
-                    zedGraphControl1.Invalidate();
-                    textBoxFileName.Text = "";
-                    textBoxStart.Text = "";
-                    textBoxFinish.Text = "";
-                    textBoxStep.Text = "";
-                    GraphInfo.Clear();
-                    BoxLock(0);         // залочить поле старт
-                    BoxLock(1);         // залочить поле финиш
-                    BoxLock(2);         // залочить поле шаг
-                    Loading = false;
-                }
-            }
-        }
-        private void treeView_Add(object sender, EventArgs e)
-        {
-            OpenFileScenario();
-        }
-        private void treeView_Expand(object sender, EventArgs e)
-        {
-            if (!(treeView1.Nodes.Count == 0))
-            {
-                treeView1.ExpandAll();
-            }
-        }
-        private void treeView_Collapse(object sender, EventArgs e)
-        {
-            if (!(treeView1.Nodes.Count == 0))
-            {
-                treeView1.CollapseAll();
-            }
-        }
-        private void treeView_addAllGraph(object sender, EventArgs e)
-        {
-            //treeView1.ExpandAll();
-            for (int i = 1; i < treeView1.Nodes.Count; i++)
-            {
-                treeView1.Nodes[i].Checked = true;
-            }
-        }
-        private void treeView_addAllMedian(object sender, EventArgs e)
-        {
-            treeView1.ExpandAll();
-            for (int i = 1; i < treeView1.Nodes.Count; i++)
-            {
-                treeView1.Nodes[i].Nodes[0].Checked = true;
-            }
-        }
-        private void treeView_removeAllMedian(object sender, EventArgs e)
-        {
-            for (int i = 1; i < treeView1.Nodes.Count; i++)
-            {
-                treeView1.Nodes[i].Nodes[0].Checked = false;
-            }
-        }
-        private void treeView_removeAllGraph(object sender, EventArgs e)
-        {
-            for (int i = 1; i < treeView1.Nodes.Count; i++)
-            {
-                treeView1.Nodes[i].Checked = false;
-            }
-        }
-        private void treeView_addAllMiddle(object sender, EventArgs e)
-        {
-            treeView1.ExpandAll();
-            for (int i = 1; i < treeView1.Nodes.Count; i++)
-            {
-                treeView1.Nodes[i].Nodes[1].Checked = true;
-            }
-        }
-        private void treeView_removeAllMiddle(object sender, EventArgs e)
-        {
-            for (int i = 1; i < treeView1.Nodes.Count; i++)
-            {
-                treeView1.Nodes[i].Nodes[1].Checked = false;
-            }
-        }
-        private void treeView1_AfterSelect(object sender, TreeViewEventArgs e)
-        {
-            bool selection = false;
-            String tag = e.Node.Text;
-            if (tag == "(Выделить все)" || tag == "(Все медианные)" || tag == "(Все средние)")
-            {
-                selection = true;
-            }
-            if (!(Checking) && e.Node.Parent == null &&!selection)
-            {
-                String newFileAdress = e.Node.Text;
-                LastFileIndex = e.Node.Index;
-                LastFileAdress = newFileAdress;
-                ShowData(LastFileIndex);
-
-                if (breaking)
-                {
-                    InitializeComboBoxes();
-                }
-                else
-                {
-                    RefreshPanelInfo();
-                }
-            }
-        }
-
-        private bool AfterCheckSelectionScenario(object sender, TreeViewEventArgs e)
-        {
-            bool selection = false;
-            String tag = e.Node.Text;
-            if (tag == "(Выделить все)" || tag == "(Все медианные)" || tag == "(Все средние)")
-            {
-                selection = true;
-            }
-            if (selection)
-            {
-                if (tag == "(Выделить все)")
-                {
-                    if (e.Node.Checked)
-                    {
-                        Checking = false;
-                        treeView_addAllGraph(sender, e);
-                        Checking = true;
-                    }
-                    else
-                    {
-                        Checking = false;
-                        treeView_removeAllGraph(sender, e);
-                        Checking = true;
-                    }
-                }
-                else if (tag == "(Все медианные)")
-                {
-                    if (e.Node.Checked)
-                    {
-                        Checking = false;
-                        treeView_addAllMedian(sender, e);
-                        Checking = true;
-                    }
-                    else
-                    {
-                        Checking = false;
-                        treeView_removeAllMedian(sender, e);
-                        Checking = true;
-                    }
-                }
-                else if (tag == "(Все средние)")
-                {
-                    if (e.Node.Checked)
-                    {
-                        Checking = false;
-                        treeView_addAllMiddle(sender, e);
-                        Checking = true;
-                    }
-                    else
-                    {
-                        Checking = false;
-                        treeView_removeAllMiddle(sender, e);
-                        Checking = true;
-                    }
-                }
-            }
-            return selection;
-        }
-        private void treeView1_AfterCheck(object sender, TreeViewEventArgs e)
-        {            
-            if (!(Checking))
-            {
-                Checking = true;
-                String newFileAdress = "";
-                bool selection = AfterCheckSelectionScenario(sender, e);
-                if (!selection)
-                {
-                    if (e.Node.Parent == null)
-                    {
-                        newFileAdress = e.Node.Text;
-
-                        if (e.Node.Checked)
-                        {
-                            LastFileAdress = newFileAdress;
-                            FileReading(LastFileAdress);
-
-                            if (!(breaking))
-                            {
-                                RefreshPanelInfo();
-                                if (checkBox_dB.Checked)
-                                {
-                                    GraphAddLog(sender, e);
-                                }
-                                else
-                                {
-                                    GraphAdd();
-                                }
-                            }
-                            else
-                            {
-                                Checking = true;
-                                e.Node.Checked = false;
-                            }
-                            if (!breaking)
-                            {
-                                DrawSheelds();
-                            }
-                        }
-                        else
-                        {
-                            treeView1.Nodes[0].Checked = false;
-                            GraphRemove(newFileAdress);
-                        }                        
-                    }
-                    else if (e.Node.Text == "Среднее значение" || e.Node.Text == "Медианное значение")
-                    {
-                        newFileAdress = e.Node.Parent.Text;
-                        if (e.Node.Checked)
-                        {
-                            LastFileAdress = newFileAdress;
-                            FileReading(LastFileAdress);
-                            if (!breaking)
-                            {
-                                AutoRangePanelInfo();
-                            }
-                            if (!(breaking))
-                            {
-                                DataBase.Compile(Start, Finish, Step);
-                                breaking = DataBase.Break;
-                            }
-                            if (!breaking)
-                            {
-
-                                if (e.Node.Text == "Среднее значение")
-                                {
-                                    if (checkBox_dB.Checked)
-                                    {
-                                        AddMiddleGraphLog(sender, e);
-                                    }
-                                    else
-                                    {
-                                        AddMiddleGraph();
-                                    }
-
-                                }
-                                else if (e.Node.Text == "Медианное значение")
-                                {
-                                    if (checkBox_dB.Checked)
-                                    {
-                                        AddMedianGraphLog(sender, e);
-                                    }
-                                    else
-                                    {
-                                        AddMedianGraph();
-                                    }
-
-                                }
-                            }
-                            else
-                            {
-                                Checking = true;
-                                e.Node.Checked = false;
-                            }
-                            if (!breaking)
-                            {
-                                DrawSheelds();
-                            }
-                        }
-                        else
-                        {
-                            if (e.Node.Text == "Среднее значение")
-                            {
-                                treeView1.Nodes[0].Nodes[1].Checked = false;
-                                RemoveMiddleGraph(newFileAdress.Remove(newFileAdress.IndexOf(".")) + "_middle.txt");
-                            }
-                            else if (e.Node.Text == "Медианное значение")
-                            {
-                                treeView1.Nodes[0].Nodes[0].Checked = false;
-                                RemoveMedianGraph(newFileAdress.Remove(newFileAdress.IndexOf(".")) + "_median.txt");
-                            }
-                        }                        
-                    }                    
-                }
-                treeView1.SelectedNode = null;
-                Checking = false;
-                if (!selection)
-                {                    
-                    Checking = true;
-                    treeView1.Nodes[0].Checked = CheckIfAllAreSelected();
-                    treeView1.Nodes[0].Nodes[0].Checked = CheckIfAllMedianAreSelected();
-                    treeView1.Nodes[0].Nodes[1].Checked = CheckIfAllMiddleAreSelected();
-                    Checking = false;
-                }                
-            }
-        }
-        private bool CheckIfAllMedianAreSelected()
-        {
-            bool answer = true;
-            for (int i = 1; i < treeView1.Nodes.Count; i++)
-            {
-                if (treeView1.Nodes[i].Nodes[0].Checked == false)
-                {
-                    answer = false;
-                }
-            }
-            return answer;
-        }
-        private bool CheckIfAllMiddleAreSelected()
-        {
-            bool answer = true;
-            for (int i = 1; i < treeView1.Nodes.Count; i++)
-            {
-                if (treeView1.Nodes[i].Nodes[1].Checked == false)
-                {
-                    answer = false;
-                }
-            }
-            return answer;
-        }
-        private bool CheckIfAllAreSelected()
-        {
-            bool answer = true;
-            for (int i = 1; i < treeView1.Nodes.Count; i++)
-            {
-                if (treeView1.Nodes[i].Checked == false)
-                {
-                    answer = false;
-                }                
-            }
-            return answer;
-        }
+        
         private void ContextMenu_Open(object sender, EventArgs e)
         {
             String openFileName = (sender as ToolStripMenuItem).Tag.ToString();
@@ -592,41 +305,148 @@ namespace GraphReader
         }
         private void ContextMenu_Delete(object sender, EventArgs e)
         {
-            String deleteFileName = (sender as ToolStripMenuItem).Tag.ToString();
 
-            foreach (TreeNode node in treeView1.Nodes)
-            {
-                if (node.Text == deleteFileName)
-                {
-                    int deleteIndex = node.Index;
-                    treeView1.Nodes.RemoveAt(deleteIndex);
-                    if (node.Checked)
-                    {
-                        GraphRemove(deleteFileName);
-                    }
-                    if (node.Nodes[0].Checked)
-                    {
-                        RemoveMedianGraph(deleteFileName.Remove(deleteFileName.IndexOf(".")) + "_median");
-                    }
-                    if (node.Nodes[1].Checked)
-                    {
-                        RemoveMiddleGraph(deleteFileName.Remove(deleteFileName.IndexOf(".")) + "_middle");
-                    }
-                    LastFileIndex = -1;
-                    LastFileAdress = "";
-                    LoadEmptyRows();
-                    break;
-                }
-            }
-            treeView1.SelectedNode = null;
+            int deleteIndex = treeViewFilesBrowser.SelectedNode.Index;
+            treeViewFilesBrowser.Nodes.RemoveAt(deleteIndex);
+            //if (node.Checked)
+            //{
+            //    GraphRemove(deleteFileName);
+            //}
+            //if (node.Nodes[0].Checked)
+            //{
+            //    RemoveMedianGraph(deleteFileName.Remove(deleteFileName.IndexOf(".")) + "_median");
+            //}
+            //if (node.Nodes[1].Checked)
+            //{
+            //    RemoveMiddleGraph(deleteFileName.Remove(deleteFileName.IndexOf(".")) + "_middle");
+            //}
+            LastFileIndex = -1;
+            LastFileAdress = "";
+            LoadEmptyRows();
+
+            treeViewFilesBrowser.SelectedNode = null;
+        }
+        private void ContextMenu_Expand(object sender, EventArgs e)
+        {
+            treeViewFilesBrowser.ExpandAll();
+        }
+        private void ContextMenu_Collapse(object sender, EventArgs e)
+        {
+            treeViewFilesBrowser.CollapseAll();
         }
 
+        private void treeViewFilesBrowser_AfterSelect(object sender, TreeViewEventArgs e)
+        {
+            LastFileSelected = GetParentFullName(treeViewFilesBrowser.SelectedNode);
+            ShowData(LoadedData.Find(x => x.Name == LastFileSelected));
+        }
+        private void treeViewFilesBrowser_DoubleClick(object sender, EventArgs e)
+        {
+            TreeNode node = (sender as TreeView).SelectedNode;
+            if (node != null)
+            {
+                if (node.Parent != null)
+                {
+                    var _curve = new Curve(node);
+                    _curve.ShowGraph(GetActiveRadioButtonModifier(), checkBox_dB.Checked, checkBox1.Checked, checkBoxNorma.Checked);                    
+                }
+            }
+        }
+        private void listViewGraphBrowser_ItemChecked(object sender, ItemCheckedEventArgs e)
+        {
+            if (listViewGraphBrowserItemChecked_trigger)
+            {
+                ListViewItem item = e.Item;
+                Curve c = Curve.CurveList.Find(x => x.ListItem.GetHashCode() == item.GetHashCode());
+                if (item.Checked)
+                {
+                    c.ShowGraph(GetActiveRadioButtonModifier(), checkBox_dB.Checked, checkBox1.Checked, checkBoxNorma.Checked);                                        
+                }
+                else
+                {
+                    c.HideGraph();                    
+                }                
+            }            
+        }
+        private void удалитьToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var items = listViewGraphBrowser.SelectedItems;
+            int count = items.Count;
+            for (int i = 0; i < count; i++)
+            {
+                Curve c = Curve.CurveList.Find(x => x.ListItem.GetHashCode() == items[0].GetHashCode());
+                Curve.Delete(c);
+            }
+        }
+        private void переименоватьToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var items = listViewGraphBrowser.SelectedItems;
+            if (items.Count != 0)
+            {
+                ListViewItem item = items[0];
+                item.BeginEdit();
+            }           
+
+        }
+
+        private void CurveModificationChanged(object sender, EventArgs e)
+        {
+            if (radioButtonModifierChanged_trigger)
+            {
+                RadioButton rb = sender as RadioButton;
+                if (rb.Checked)
+                {
+                    var items = listViewGraphBrowser.SelectedItems;
+                    int count = items.Count;
+                    for (int i = 0; i < count; i++)
+                    {
+                        Curve c = Curve.CurveList.Find(x => x.ListItem.GetHashCode() == items[i].GetHashCode());
+                        c.HideGraph();
+                        c.ShowGraph(GetActiveRadioButtonModifier(), checkBox_dB.Checked, checkBox1.Checked, checkBoxNorma.Checked);
+                    }
+                }
+                zedGraphControl1.AxisChange();
+                zedGraphControl1.Invalidate();
+            }
+        }
+
+
+        private void listViewGraphBrowser_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            var items = listViewGraphBrowser.SelectedItems;
+            if (items.Count > 0)
+            {
+                Curve c = Curve.CurveList.Find(x => x.ListItem.GetHashCode() == items[0].GetHashCode());
+                SetActiveRadioButton(c.currentModifier);
+                SetCheckedBoxes(c.CheckedTodB, c.CheckedToTimes, c.CheckedToNorma);
+            }            
+        }
+
+        private void SetCheckedBoxes(bool _checkedTodB, bool _checkedToTimes, bool _checkedToNorma )
+        {
+            checkBox_dB.Checked = _checkedTodB;
+            checkBox1.Checked = _checkedToTimes;
+            checkBoxNorma.Checked = _checkedToNorma;
+        }
         #endregion
 
         #region StripMenuPanel
         private void открытьToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            OpenFileScenario();
+            //OpenFileScenario();
+            ClearAll();
+        }
+
+        private void ClearAll()
+        {            
+            if (MessageBox.Show("Очистить всё?","Внимание",MessageBoxButtons.OKCancel) == System.Windows.Forms.DialogResult.OK)
+            {
+                treeViewFilesBrowser.Nodes.Clear();
+                LoadedData = new List<DataElement2>();
+                LoadEmptyRows();
+                listViewGraphBrowser.Clear();
+                Curve.Clear();    
+            }            
         }
         private void открытьTextReaderToolStripMenuItem_Click(object sender, EventArgs e)
         {
@@ -698,38 +518,85 @@ namespace GraphReader
 
         private void выбратьВсеГрафикиToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            treeView1.Nodes[0].Checked = true;
+
+            //if (выбратьВсеГрафикиToolStripMenuItem.Checked)
+            //{
+            //    if (treeViewGraphBrowser.Nodes.Count != 0)
+            //    {
+            //        treeViewGraphBrowser.Nodes[0].Checked = true;
+            //    }
+            //    else
+            //    {
+            //        выбратьВсеГрафикиToolStripMenuItem.Checked = false;
+            //    }
+            //}
+            //else
+            //{
+            //    if (treeViewGraphBrowser.Nodes.Count != 0)
+            //    {
+            //        treeViewGraphBrowser.Nodes[0].Checked = false;
+            //    }
+            //}
+            
         }
 
         private void выбратьВсеМедианныеToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            treeView1.Nodes[0].Nodes[0].Checked = true;
+            //if (выбратьВсеМедианныеToolStripMenuItem.Checked)
+            //{
+            //    if (treeViewGraphBrowser.Nodes.Count != 0)
+            //    {
+            //        treeViewGraphBrowser.Nodes[0].Nodes[0].Checked = true;
+            //    }
+            //    else
+            //    {
+            //        выбратьВсеМедианныеToolStripMenuItem.Checked = false;
+            //    }
+            //}
+            //else
+            //{
+            //    if (treeViewGraphBrowser.Nodes.Count != 0)
+            //    {
+            //        treeViewGraphBrowser.Nodes[0].Nodes[0].Checked = false;
+            //    }       
+            //}
+            
         }
 
         private void выбратьВсеСредниеToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            treeView1.Nodes[0].Nodes[1].Checked = true;
+            //if (выбратьВсеСредниеToolStripMenuItem.Checked)
+            //{
+            //    if (treeViewGraphBrowser.Nodes.Count != 0)
+            //    {
+            //        treeViewGraphBrowser.Nodes[0].Nodes[1].Checked = true;
+            //    }
+            //    else
+            //    {
+            //        выбратьВсеСредниеToolStripMenuItem.Checked = false;
+            //    }
+            //}
+            //else
+            //{
+            //    if (treeViewGraphBrowser.Nodes.Count != 0)
+            //    {
+            //        treeViewGraphBrowser.Nodes[0].Nodes[1].Checked = false;
+            //    }
+            //}
+            
         }
-
-        private void снятьВсеГрафикиToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            treeView1.Nodes[0].Checked = false;
-        }
-
-        private void снятьВсеМедианныеToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            treeView1.Nodes[0].Nodes[0].Checked = false;
-        }
-
-        private void снятьВсеСредниеToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            treeView1.Nodes[0].Nodes[1].Checked = false;
-        }
-
+        
         private void открытьTableWriterToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            TableWriter = new TableWriter(this);
-            TableWriter.Show();
+            if (listViewGraphBrowser.SelectedItems.Count != 0)
+            {
+                TableWriter = new TableWriter(this);
+                TableWriter.Show();    
+            }
+            else
+            {
+                MessageBox.Show("Выделите хотя бы один график", "Внимание");
+            }
         }
 
         private void преобразоватьToolStripMenuItem_Click(object sender, EventArgs e)
@@ -741,18 +608,36 @@ namespace GraphReader
         {
             TextReader = new TextReader();
             TextReader.Show();
-            if (!(LastFileIndex == -1))
+            if (treeViewFilesBrowser.SelectedNode != null)
             {
-                TextReader.FileName = LastFileAdress;
-                TextReader.OpenScenario(LastFileAdress);
+                TextReader.FileName = treeViewFilesBrowser.SelectedNode.Tag.ToString();
+                TextReader.OpenScenario(treeViewFilesBrowser.SelectedNode.Tag.ToString());
             }
-
         }
 
         private void оПрограммеToolStripMenuItem_Click(object sender, EventArgs e)
         {
             string message = "Программа GraphReader v" + version + " предназначена для визуализации табличных данных, а также их последующей обработки и редактирования \n\nПрограмма позволяет выгружать результаты обработки в виде *.docx и *.txt файлов: \n\t- средних значений \n\t- медианных значений \n\t- контрольных значений \n\nДата сборки текущей версии " + date + "";
             MessageBox.Show(message, "О программе", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void свернутьРазвернутьToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            //if (treeViewGraphBrowser.Nodes.Count > 0)
+            //{
+            //    if (свернутьРазвернутьToolStripMenuItem.Checked == true)
+            //    {
+            //        treeViewGraphBrowser.ExpandAll();
+            //    }
+            //    else
+            //    {
+            //        treeViewGraphBrowser.CollapseAll();
+            //    }
+            //}
+            //else
+            //{
+            //    свернутьРазвернутьToolStripMenuItem.Checked = false;
+            //}
         }
         #endregion
 
@@ -772,22 +657,24 @@ namespace GraphReader
             count = dataGridView1.Height / count;
             return count;
         }
-        public void FirstLoadRows()
+        public void FirstLoadRows(DataElement2 data)
         {
             firstVisibleRow = 0;
             lastAddedValue = 0;
             ScrollRange = 500;
             dataGridView1.Rows.Clear();
-            LoadRows();
+            LoadRows(data);
         }
-        private void LoadRows()
+        private void LoadRows(DataElement2 data)
         {
-            int dataLines = StringTable.RowsCount;
+            int dataLines = 0;
+            if (data != null)
+            {
+                dataLines = data.RowsCount;
+            }
             if (!(lastAddedValue == dataLines) || dataLines == 0)
             {
-                HideScrollBars();
-
-                //System.Diagnostics.Debug.WriteLine("Load data");
+                HideScrollBars();                
                 lastLoading = DateTime.Now;
 
                 //create rows
@@ -798,9 +685,9 @@ namespace GraphReader
                         for (int i = lastAddedValue; i < ScrollRange + lastAddedValue; i++)
                         {
                             dataGridView1.Rows.Add();
-                            for (int j = 0; j < NumberOfColumns; j++)
+                            for (int j = 0; j < data.ColumnsCount; j++)
                             {
-                                dataGridView1[j, i].Value = StringTable.Cell[j, i];
+                                dataGridView1[j, i].Value = data[j, i];
                             }
                         }
                         lastAddedValue += ScrollRange;
@@ -813,9 +700,9 @@ namespace GraphReader
                         for (int i = lastAddedValue; i < lastAddedValue + val; i++)
                         {
                             dataGridView1.Rows.Add();
-                            for (int j = 0; j < NumberOfColumns; j++)
+                            for (int j = 0; j < data.ColumnsCount; j++)
                             {
-                                dataGridView1[j, i].Value = StringTable.Cell[j, i];
+                                dataGridView1[j, i].Value = data[j, i];
                             }
                         }
                         lastAddedValue += val;
@@ -848,8 +735,9 @@ namespace GraphReader
                     TimeSpan ts = DateTime.Now - lastLoading;
                     if (ts.TotalMilliseconds > 100)
                     {
-                        firstVisibleRow = e.NewValue;
-                        LoadRows();
+                        firstVisibleRow = e.NewValue;                        
+
+                        //LoadRows(LoadedData.Find(x => x.Name == GetParentFullName(treeViewFilesBrowser.SelectedNode)));
                     }
                     else
                     {
@@ -857,6 +745,19 @@ namespace GraphReader
                     }
                 }
             }
+        }
+        string GetParentFullName(TreeNode node)
+        {
+            string fileName = "";
+            if (node.Parent == null)
+            {
+                fileName = node.Tag.ToString();
+            }
+            else
+            {
+                fileName = node.Parent.Tag.ToString();
+            }
+            return fileName;
         }
         private void LoadEmptyRows()
         {
@@ -881,20 +782,71 @@ namespace GraphReader
         {
             if (!(Checking))
             {
-                String fileAdress = treeView1.Nodes[showFileNumber].Text;
-                comboBoxX.SelectedIndex = 0;
-                comboBoxY.SelectedIndex = 1;
+                String fileAdress = listViewGraphBrowser.Items[showFileNumber].Tag.ToString();                
                 FileReading(fileAdress);
-                FirstLoadRows();
+                //FirstLoadRows();
 
                 System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
                 dataGridViewCellStyle1.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
                 dataGridView1.AlternatingRowsDefaultCellStyle = dataGridViewCellStyle1;
             }
         }
+        void ShowData(DataElement2 data)
+        {
+            FirstLoadRows(data);
+
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
+            dataGridViewCellStyle1.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridView1.AlternatingRowsDefaultCellStyle = dataGridViewCellStyle1;
+            
+        }
+        private void GetDataBase()
+        {
+            //float valueX, valueY;
+            //String xline, yline;
+            
+            //int xCol = comboBoxX.SelectedIndex;
+            //int yCol = comboBoxY.SelectedIndex;
+                                    
+           
+            //if ((xCol + 1) > StringTable.ColomnsCount || (yCol + 1) > StringTable.ColomnsCount)
+            //{
+            //    MessageBox.Show("Указанной колонки не существует", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Stop);
+            //    breaking = true;
+            //}
+            //else
+            //{
+            //    for (int j = 0; j < StringTable.RowsCount; j++)
+            //    {
+            //        try
+            //        {
+            //            xline = StringTable.Cell[xCol, j];
+            //            yline = StringTable.Cell[yCol, j];
+
+            //            xline = xline.Replace('\0', '.').Replace(".", ",");
+            //            yline = yline.Replace('\0', '.').Replace(".", ",");
+            //            valueX = Convert.ToSingle(xline);
+            //            valueY = Convert.ToSingle(yline);
+            //        }
+            //        catch (Exception)
+            //        {
+            //            String message = "Строчка " + j + " в файле " + LastFileAdress + " не удовлетворяет формату.";
+            //            MessageBox.Show(message, "Дальнейшее чтение файла не возможно", MessageBoxButtons.OK, MessageBoxIcon.Stop);
+            //            breaking = true;
+            //            break;
+            //        }
+            //    }                
+            //}
+            //if (!breaking)
+            //{
+            //    DataBase = new DataElement(StringTable, xCol, yCol);
+            //    DataBase.FindMinMax();
+            //}
+            
+        }
         private void toolStripMenuItem2_Click(object sender, EventArgs e)
         {
-            if (!(treeView1.Nodes.Count == 0))
+            if (!(listViewGraphBrowser.Items.Count == 0))
             {
                 ShowData(LastFileIndex);
             }
@@ -914,341 +866,97 @@ namespace GraphReader
         }
         private void RefreshPanelInfo()
         {
-            Loading = true;
-            int colx = comboBoxX.SelectedIndex;
-            int coly = comboBoxY.SelectedIndex;
+            //Loading = true;
+            //int colx = comboBoxX.SelectedIndex;
+            //int coly = comboBoxY.SelectedIndex;
+            //if (GraphInfo.Exist(LastFileAdress))
+            //{
+            //    int n = GraphInfo.Number(LastFileAdress);
+            //    colx = GraphInfo.GetX(n);
+            //    coly = GraphInfo.GetY(n);
+            //}
+            
+            //textBoxFileName.Text = Path.GetFileName(LastFileAdress);
 
-            textBoxFileName.Text = LastFileAdress;
+            //object[] alfa = new object[] { "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S" };
+            //comboBoxX.Items.Clear();
+            //comboBoxY.Items.Clear();
 
-            object[] alfa = new object[] { "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S" };
-            comboBoxX.Items.Clear();
-            comboBoxY.Items.Clear();
+            //for (int i = 0; i < NumberOfColumns; i++)
+            //{
+            //    comboBoxX.Items.Add(alfa[i]);
+            //    comboBoxY.Items.Add(alfa[i]);
+            //}
+            //if (NumberOfColumns != 0)
+            //{
+            //    if (colx > NumberOfColumns)
+            //    {
+            //        comboBoxX.SelectedIndex = 0;    
+            //    }
+            //    else
+            //    {
+            //        comboBoxX.SelectedIndex = colx;
+            //    }
+            //    if (coly > NumberOfColumns)
+            //    {
+            //        comboBoxY.SelectedIndex = 1;    
+            //    }
+            //    else
+            //    {
+            //        comboBoxY.SelectedIndex = coly;
+            //    }                
+            //}
 
-            for (int i = 0; i < NumberOfColumns; i++)
-            {
-                comboBoxX.Items.Add(alfa[i]);
-                comboBoxY.Items.Add(alfa[i]);
-            }
-            comboBoxX.SelectedIndex = colx;
-            comboBoxY.SelectedIndex = coly;
+            //AutoRangePanelInfo();
 
-            AutoRangePanelInfo();
-
-            Loading = false;
+            //Loading = false;
         }
         private void AutoRangePanelInfo()
         {
             Loading = true;
-            if (checkBoxAutoStart.Checked)
+            if (DataBase != null)
             {
-                textBoxStart.Text = Convert.ToString(DataBase.Begin);
-                Start = DataBase.Begin;
+                //if (checkBoxAutoStart.Checked)
+                //{
+                //    textBoxStart.Text = Convert.ToString(DataBase.Begin);
+                //    Start = DataBase.Begin;
 
-            }
-            if (checkBoxAutoFinish.Checked)
-            {
+                //}
+                //if (checkBoxAutoFinish.Checked)
+                //{
 
-                textBoxFinish.Text = Convert.ToString(DataBase.End);
-                Finish = DataBase.End;
+                //    textBoxFinish.Text = Convert.ToString(DataBase.End);
+                //    Finish = DataBase.End;
 
-            }
-            if (checkBoxAutoStep.Checked)
-            {
-
-                textBoxStep.Text = Convert.ToString(Math.Floor((DataBase.End - DataBase.Begin) / 10));
-                Step = (float)Math.Floor((DataBase.End - DataBase.Begin) / 10);
-
+                //}
+                //if (checkBoxAutoStep.Checked)
+                //{
+                //    Step = (float)((DataBase.End - DataBase.Begin) / 10);
+                //    textBoxStep.Text = Convert.ToString(Step);
+                //}
             }
             Loading = false;
         }
-        private void checkBoxDelimeter_CheckedChanged(object sender, EventArgs e)
-        {
-            if (checkBoxDelimeter.Checked)
-            {
-                comboBoxDelimeter.Enabled = false;
-            }
-            else
-            {
-                comboBoxDelimeter.Enabled = true;
-                if (comboBoxDelimeter.Text == "")
-                {
-                    comboBoxDelimeter.SelectedIndex = 0;
-                }
-            }
-        }
-        private void button1_Click(object sender, EventArgs e)
-        {
-            if (!(myPane.CurveList.Count == 0))
-            {
-                string format = CallFormat(Convert.ToInt32(numericUpDownDecimalNumb.Value));
-                String exportPath;
-                exportPath = textBoxExportPath.Text;
-                for (int i = 0; i < myPane.CurveList.Count; i++)
-                {
-                    if (myPane.CurveList[i].Tag.ToString() == "Median" || myPane.CurveList[i].Tag.ToString() == "Middle")
-                    {
-                        String name = myPane.CurveList[i].Label.Text.ToString();
-                        String partName = name.Substring(name.LastIndexOf("\\"));
-                        StreamWriter sw = new StreamWriter(exportPath + partName);
-
-                        for (int j = 0; j < myPane.CurveList[i].Points.Count; j++)
-                        {
-                            Decimal yVal = Convert.ToDecimal(myPane.CurveList[i].Points[j].Y);
-                            yVal = Math.Round(yVal, Convert.ToInt32(numericUpDownDecimalNumb.Value));
-                            string line = myPane.CurveList[i].Points[j].X.ToString() + "\t" + String.Format(format, yVal);
-                            if (comboBox1.SelectedIndex == 0)
-                            {
-                                line = line.Replace(",", ".");
-                            }
-                            sw.WriteLine(line);
-                        }
-                        sw.Close();
-                    }
-                }
-            }
-        }
-        private void button2_Click(object sender, EventArgs e)
-        {
-            if (!(myPane.CurveList.Count == 0))
-            {
-                if (ProveEqualBorders())
-                {
-                    WaitCursorON();
-
-                    string format = CallFormat(Convert.ToInt32(numericUpDownDecimalNumb.Value));
-
-                    List<List<String>> dataMassiveMedian = new List<List<String>>();
-                    List<List<String>> dataMassiveMiddle = new List<List<String>>();
-
-                    for (int i = 0; i < myPane.CurveList.Count; i++)
-                    {
-                        if (myPane.CurveList[i].Tag.ToString() == "Median" || myPane.CurveList[i].Tag.ToString() == "Middle")
-                        {
-                            List<string> firstRow = new List<string>();
-                            firstRow.Add("");
-
-                            for (int n = 1; n < myPane.CurveList[i].Points.Count; n = n + 2)
-                            {
-                                string firststr = myPane.CurveList[i].Points[n - 1].X.ToString();
-                                string secondstr = myPane.CurveList[i].Points[n].X.ToString();
-
-                                firstRow.Add(firststr + "..." + secondstr);
-                            }
-                            dataMassiveMedian.Add(firstRow);
-                            dataMassiveMiddle.Add(firstRow);
-                            break;
-                        }
-                    }
-
-
-
-                    for (int i = 0; i < myPane.CurveList.Count; i++)
-                    {
-                        if (myPane.CurveList[i].Tag.ToString() == "Median")
-                        {
-                            List<String> dataRow = new List<string>();
-                            String filename = myPane.CurveList[i].Label.Text.ToString();
-                            String shortName = filename.Substring(filename.LastIndexOf("\\") + 1);
-                            string sname = shortName.Remove(shortName.LastIndexOf("_"));
-                            dataRow.Add(sname);
-
-                            for (int j = 0; j < myPane.CurveList[i].Points.Count; j = j + 2)
-                            {
-                                Decimal val = Convert.ToDecimal(myPane.CurveList[i].Points[j].Y);
-                                val = Math.Round(val, Convert.ToInt32(numericUpDownDecimalNumb.Value));
-                                dataRow.Add(String.Format(format, val));
-                            }
-                            dataMassiveMedian.Add(dataRow);
-                        }
-                        else if (myPane.CurveList[i].Tag.ToString() == "Middle")
-                        {
-                            List<String> dataRow = new List<string>();
-                            String filename = myPane.CurveList[i].Label.Text.ToString();
-                            String shortName = filename.Substring(filename.LastIndexOf("\\") + 1);
-                            string sname = shortName.Remove(shortName.LastIndexOf("_"));
-                            dataRow.Add(sname);
-
-                            for (int j = 0; j < myPane.CurveList[i].Points.Count; j = j + 2)
-                            {
-                                Decimal val = Convert.ToDecimal(myPane.CurveList[i].Points[j].Y);
-                                val = Math.Round(val, Convert.ToInt32(numericUpDownDecimalNumb.Value));
-                                dataRow.Add(String.Format(format, val));
-                            }
-                            dataMassiveMiddle.Add(dataRow);
-                        }
-                    }
-
-                    CreateWordDocument(dataMassiveMedian, dataMassiveMiddle);
-                    WaitCursorOFF();
-                }
-                else
-                {
-                    MessageBox.Show("Границы расчитанных значений не совпадают", "Ошибка", MessageBoxButtons.OK);
-                }
-
-            }
-        }
-        private void button3_Click(object sender, EventArgs e)
-        {
-            if (folderBrowserDialog1.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-            {
-                textBoxExportPath.Text = folderBrowserDialog1.SelectedPath;
-            }
-        }
-        private void textBoxStart_TextChanged(object sender, EventArgs e)
-        {
-            if (!(Loading))
-            {
-                try
-                {
-                    BoxUnLock(0);
-                    Start = Convert.ToSingle(textBoxStart.Text);
-                    DrawSheelds();
-
-                }
-                catch (Exception)
-                {
-                }
-            }
-
-        }
-        private void textBoxFinish_TextChanged(object sender, EventArgs e)
-        {
-            if (!(Loading))
-            {
-                try
-                {
-                    BoxUnLock(1);
-                    Finish = Convert.ToSingle(textBoxFinish.Text);
-                    DrawSheelds();
-                }
-                catch (Exception)
-                {
-                }
-            }
-
-        }
-        private void textBoxStep_TextChanged(object sender, EventArgs e)
-        {
-            if (!(Loading))
-            {
-                try
-                {
-                    BoxUnLock(2);
-                    Step = Convert.ToSingle(textBoxStep.Text);
-                    DrawSheelds();
-                }
-                catch (Exception)
-                {
-                }
-            }
-
-        }
-        private void checkBox_dB_CheckedChanged(object sender, EventArgs e)
+        
+        
+       
+        private void checkBoxModification_CheckedChanged(object sender, EventArgs e)
         {
             if (!(breaking))
             {
-                if (checkBox_dB.Checked)
+                var items = listViewGraphBrowser.SelectedItems;
+                int count = items.Count;
+                for (int i = 0; i < count; i++)
                 {
-                    if (OnlyPositive(myPane.CurveList))
-                    {
-                        for (int i = 0; i < myPane.CurveList.Count; i++)
-                        {
-                            for (int j = 0; j < myPane.CurveList[i].Points.Count; j++)
-                            {
-                                myPane.CurveList[i].Points[j].Y = 20 * Math.Log10(myPane.CurveList[i].Points[j].Y);
-                            }
-                        }
-                        zedGraphControl1.AxisChange();
-                        zedGraphControl1.Invalidate();
-                    }
-                    else
-                    {
-                        breaking = true;
-                        checkBox_dB.Checked = false;
-                        breaking = false;
-                        MessageBox.Show("Не все графики могуть быть нарисованы в логирифмической шкале.");
-
-                    }
+                    Curve c = Curve.CurveList.Find(x => x.ListItem.GetHashCode() == items[i].GetHashCode());
+                    c.HideGraph();
+                    c.ShowGraph(c.currentModifier, checkBox_dB.Checked, checkBox1.Checked, checkBoxNorma.Checked);
                 }
-                else
-                {
-                    for (int i = 0; i < myPane.CurveList.Count; i++)
-                    {
-                        for (int j = 0; j < myPane.CurveList[i].Points.Count; j++)
-                        {
-                            myPane.CurveList[i].Points[j].Y = Math.Pow(10, myPane.CurveList[i].Points[j].Y / 20);
-                        }
-                    }
-                    zedGraphControl1.AxisChange();
-                    zedGraphControl1.Invalidate();
-                }
+                zedGraphControl1.AxisChange();
+                zedGraphControl1.Invalidate();
             }
         }
-        private void checkBoxAutoStart_CheckedChanged(object sender, EventArgs e)
-        {
-            if (checkBoxAutoStart.Checked)
-            {
-                BoxLock(0);
-                if (!(textBoxStart.Text == ""))
-                {
-                    AutoRangePanelInfo();
-                    DrawSheelds();
-                }
-
-            }
-            else
-            {
-                BoxUnLock(0);
-            }
-        }
-        private void checkBoxAutoFinish_CheckedChanged(object sender, EventArgs e)
-        {
-            if (checkBoxAutoFinish.Checked)
-            {
-                BoxLock(1);
-                if (!(textBoxFinish.Text == ""))
-                {
-                    AutoRangePanelInfo();
-                    DrawSheelds();
-                }
-            }
-            else
-            {
-                BoxUnLock(1);
-            }
-        }
-        private void checkBoxAutoStep_CheckedChanged(object sender, EventArgs e)
-        {
-            if (checkBoxAutoStep.Checked)
-            {
-                BoxLock(2);
-                if (!(textBoxStep.Text == ""))
-                {
-                    AutoRangePanelInfo();
-                    DrawSheelds();
-                }
-            }
-            else
-            {
-                BoxUnLock(2);
-            }
-        }
-        private void checkBoxBorders_CheckedChanged(object sender, EventArgs e)
-        {
-            if (checkBoxBorders.Checked)
-            {
-                myPane.CurveList[myPane.CurveList.IndexOf("RightGate")].IsVisible = true;
-                myPane.CurveList[myPane.CurveList.IndexOf("LeftGate")].IsVisible = true;
-            }
-            else
-            {
-                myPane.CurveList[myPane.CurveList.IndexOf("RightGate")].IsVisible = false;
-                myPane.CurveList[myPane.CurveList.IndexOf("LeftGate")].IsVisible = false;
-            }
-            zedGraphControl1.AxisChange();
-            zedGraphControl1.Invalidate();
-        }
+        
         private void textBoxEnterNumber_KeyPress(object sender, KeyPressEventArgs e)
         {
             char number = e.KeyChar;
@@ -1290,115 +998,162 @@ namespace GraphReader
             }
             return answer;
         }
-        private void textBox1_KeyPress(object sender, KeyPressEventArgs e)
+       
+        
+        
+        private void ColumnXChanged(object sender, EventArgs e)
         {
-            char number = e.KeyChar;
+            //RefreshGraph();
+        }
+        private int CountSelectedNonInitialCurves()
+        {
+            //int number = 0;
+            //for (int i = 0; i < treeViewGraphBrowser.Nodes.Count; i++)
+            //{
+            //    if (treeViewGraphBrowser.Nodes[i].Nodes[0].Checked == true)
+            //    {
+            //        number++;
+            //    }
+            //    if (treeViewGraphBrowser.Nodes[i].Nodes[1].Checked == true)
+            //    {
+            //        number++;
+            //    }
+            //}
+            //return number;
+            return listViewGraphBrowser.CheckedItems.Count;
+        }
 
-            if (!Char.IsDigit(number) && number != 8 && number != 44 && number != 45 && number != 46) // цифры, клавиша BackSpace
-            {
-                e.Handled = true;
-            }
-            if (!(number != 46))
-            {
-                e.KeyChar = ',';
-            }
-        }
-        private void numericUpDown1_ValueChanged(object sender, EventArgs e)
+        
+        private void RefreshGraph()
         {
-            try
-            {
-                SkipLines = Convert.ToInt32(numericUpDownSkip.Value);
-            }
-            catch (Exception)
-            {
-            }
+            //if (!Loading)
+            //{
+            //    Loading = true;
+            //    for (int i = 0; i < treeViewGraphBrowser.Nodes.Count; i++)
+            //    {
+            //        if (treeViewGraphBrowser.Nodes[i].Text == LastFileAdress)
+            //        {
+            //            if (treeViewGraphBrowser.Nodes[i].Checked)
+            //            {
+            //                treeViewGraphBrowser.Nodes[i].Checked = false;
+            //                treeViewGraphBrowser.Nodes[i].Checked = true;
+            //                if (treeViewGraphBrowser.Nodes[i].Nodes[0].Checked)
+            //                {
+            //                    treeViewGraphBrowser.Nodes[i].Nodes[0].Checked = false;
+            //                    treeViewGraphBrowser.Nodes[i].Nodes[0].Checked = true;
+            //                }
+            //                if (treeViewGraphBrowser.Nodes[i].Nodes[1].Checked)
+            //                {
+            //                    treeViewGraphBrowser.Nodes[i].Nodes[1].Checked = false;
+            //                    treeViewGraphBrowser.Nodes[i].Nodes[1].Checked = true;
+            //                }
+            //            }
+            //        }
+            //    }
+            //    Loading = false;
+            //}
         }
-        private void checkBoxHeader_CheckedChanged(object sender, EventArgs e)
-        {
-            if (checkBoxHeader.Checked)
-            {
-                SkipLines = 0;
-                numericUpDownSkip.Enabled = false;
-            }
-            else
-            {
-                numericUpDownSkip.Enabled = true;
-                numericUpDownSkip.Value = 1;
-                SkipLines = 1;
-            }
-        }
+
         #endregion
 
         #region GraphControl
         private void DrawSheelds()
         {
-            if (!(DataBase.Values.Length == -1))
-            {
-                if (!(myPane.CurveList.IndexOf("LeftGate") == -1) && !(myPane.CurveList.IndexOf("RightGate") == -1))
-                {
-                    myPane.CurveList.RemoveAt(myPane.CurveList.IndexOf("LeftGate"));
-                    myPane.CurveList.RemoveAt(myPane.CurveList.IndexOf("RightGate"));
-                }
-            }
+            //if (!(DataBase.Values.Length == -1))
+            //{
+            //    if (!(myPane.CurveList.IndexOf("LeftGate") == -1) && !(myPane.CurveList.IndexOf("RightGate") == -1))
+            //    {
+            //        myPane.CurveList.RemoveAt(myPane.CurveList.IndexOf("LeftGate"));
+            //        myPane.CurveList.RemoveAt(myPane.CurveList.IndexOf("RightGate"));
+            //    }
+            //}
 
-            PointPairList listLeft = new PointPairList();
-            PointPairList listRight = new PointPairList();
 
-            if (!(checkBox_dB.Checked))
-            {
-                listLeft.Add(Start, GraphInfo.Min);
-                listLeft.Add(Start, GraphInfo.Max);
 
-                listRight.Add(Finish, GraphInfo.Min);
-                listRight.Add(Finish, GraphInfo.Max);
-            }
-            else
-            {
-                listLeft.Add(Start, 20 * Math.Log10(GraphInfo.Min));
-                listLeft.Add(Start, 20 * Math.Log10(GraphInfo.Max));
+            //PointPairList listLeft = new PointPairList();
+            //PointPairList listRight = new PointPairList();
 
-                listRight.Add(Finish, 20 * Math.Log10(GraphInfo.Min));
-                listRight.Add(Finish, 20 * Math.Log10(GraphInfo.Max));
-            }
+            //if (!(checkBox_dB.Checked))
+            //{
+            //    listLeft.Add(Start, GraphInfo.Min);
+            //    listLeft.Add(Start, GraphInfo.Max);
+
+            //    listRight.Add(Finish, GraphInfo.Min);
+            //    listRight.Add(Finish, GraphInfo.Max);
+            //}
+            //else
+            //{
+            //    listLeft.Add(Start, 20 * Math.Log10(GraphInfo.Min));
+            //    listLeft.Add(Start, 20 * Math.Log10(GraphInfo.Max));
+
+            //    listRight.Add(Finish, 20 * Math.Log10(GraphInfo.Min));
+            //    listRight.Add(Finish, 20 * Math.Log10(GraphInfo.Max));
+            //}
                                    
-            LineItem Left_curve = myPane.AddCurve("LeftGate", listLeft, Color.Red, SymbolType.None);
-            LineItem Right_curve = myPane.AddCurve("RightGate", listRight, Color.Red, SymbolType.None);
+            //LineItem Left_curve = myPane.AddCurve("LeftGate", listLeft, Color.Red, SymbolType.None);
+            //LineItem Right_curve = myPane.AddCurve("RightGate", listRight, Color.Red, SymbolType.None);
 
 
-            Left_curve.Line.Width = 1F;
-            Left_curve.Symbol.Size = 2F;
-            Left_curve.Tag = "Border";
+            //Left_curve.Line.Width = 1F;
+            //Left_curve.Symbol.Size = 2F;
+            //Left_curve.Tag = "Border";
 
 
-            Right_curve.Line.Width = 1F;
-            Right_curve.Symbol.Size = 2F;
-            Right_curve.Tag = "Border";
+            //Right_curve.Line.Width = 1F;
+            //Right_curve.Symbol.Size = 2F;
+            //Right_curve.Tag = "Border";
 
 
-            if (checkBoxBorders.Checked)
-            {
-                myPane.CurveList[myPane.CurveList.IndexOf("RightGate")].IsVisible = true;
-                myPane.CurveList[myPane.CurveList.IndexOf("LeftGate")].IsVisible = true;
-            }
-            else
-            {
-                myPane.CurveList[myPane.CurveList.IndexOf("RightGate")].IsVisible = false;
-                myPane.CurveList[myPane.CurveList.IndexOf("LeftGate")].IsVisible = false;
-            }
+            //if (checkBoxBorders.Checked)
+            //{
+            //    myPane.CurveList[myPane.CurveList.IndexOf("RightGate")].IsVisible = true;
+            //    myPane.CurveList[myPane.CurveList.IndexOf("LeftGate")].IsVisible = true;
+            //}
+            //else
+            //{
+            //    myPane.CurveList[myPane.CurveList.IndexOf("RightGate")].IsVisible = false;
+            //    myPane.CurveList[myPane.CurveList.IndexOf("LeftGate")].IsVisible = false;
+            //}
 
-            zedGraphControl1.AxisChange();
-            zedGraphControl1.Invalidate();
+            //zedGraphControl1.AxisChange();
+            //zedGraphControl1.Invalidate();
         }
 
-        private void RemoveSheelds()
+        public LineItem GraphAddCurve(string code, double[] X, double[] Y)
         {
-            if (!(myPane.CurveList.IndexOf("LeftGate") == -1) && !(myPane.CurveList.IndexOf("RightGate") == -1))
+            String filename = code;
+            PointPairList list = new PointPairList();
+            for (int i = 0; i < X.Length; i++)
             {
-                myPane.CurveList.RemoveAt(myPane.CurveList.IndexOf("LeftGate"));
-                myPane.CurveList.RemoveAt(myPane.CurveList.IndexOf("RightGate"));
+                list.Add(X[i], Y[i]);
             }
+
+            Random r = new Random();
+            LineItem f1_curve = myPane.AddCurve(filename, list, Color.FromArgb(r.Next(256), r.Next(256), r.Next(256)), SymbolType.None);
+            f1_curve.Line.Width = 2F;
+            f1_curve.Symbol.Size = 2F;
+            //f1_curve.Tag = "";
+
+            //GraphInfo.Add(DataBase);
+            //DrawSheelds();
+
+            myPane.XAxis.Scale.MinAuto = true;
+            myPane.XAxis.Scale.MaxAuto = true;
+            myPane.YAxis.Scale.MinAuto = true;
+            myPane.YAxis.Scale.MaxAuto = true;
             zedGraphControl1.AxisChange();
             zedGraphControl1.Invalidate();
+
+            return f1_curve;
+        }
+
+        public void GraphRemoveCurve(Curve c)
+        {
+            myPane.CurveList.RemoveAt(myPane.CurveList.IndexOf(c.Code));            
+
+            zedGraphControl1.AxisChange();
+            zedGraphControl1.Invalidate();
+          
         }
         private void GraphAdd()
         {
@@ -1406,7 +1161,7 @@ namespace GraphReader
             if (!(GraphInfo.Exist(filename)))
             {
                 PointPairList list = new PointPairList();
-                for (int i = 0; i < MassivesDataLines; i++)
+                for (int i = 0; i < DataBase.Rows; i++)
                 {
                     list.Add(DataBase.Values[i, 0], DataBase.Values[i, 1]);
                 }
@@ -1416,7 +1171,7 @@ namespace GraphReader
                 f1_curve.Symbol.Size = 2F;
                 f1_curve.Tag = "Origin";
 
-                GraphInfo.Add(filename, DataBase.Min, DataBase.Max);
+                GraphInfo.Add(DataBase);
                 DrawSheelds();
 
                 myPane.XAxis.Scale.MinAuto = true;
@@ -1437,7 +1192,7 @@ namespace GraphReader
                     try
                     {
                         PointPairList list = new PointPairList();
-                        for (int i = 0; i < MassivesDataLines; i++)
+                        for (int i = 0; i < DataBase.Rows; i++)
                         {
                             list.Add(DataBase.Values[i, 0], 20 * Math.Log10(DataBase.Values[i, 1]));
                         }
@@ -1448,7 +1203,7 @@ namespace GraphReader
                         f1_curve.Symbol.Size = 2F;
                         f1_curve.Tag = "Origin";
 
-                        GraphInfo.Add(filename, DataBase.Min, DataBase.Max);
+                        GraphInfo.Add(DataBase);
                         DrawSheelds();
 
                         myPane.XAxis.Scale.MinAuto = true;
@@ -1491,13 +1246,13 @@ namespace GraphReader
                         list.Add(DataBase.Start + DataBase.Step * (i + 1), DataBase.Middle[i]);
                     }
                 }
-                Random r = new Random();                
-                String cutname = DataBase.Title.Remove(DataBase.Title.LastIndexOf("."));
-                LineItem f1_curve = myPane.AddCurve(cutname + "_middle.txt", list, Color.FromArgb(r.Next(256), r.Next(120), r.Next(256)), SymbolType.None);
+                Random r = new Random();
+
+                LineItem f1_curve = myPane.AddCurve(filename, list, Color.FromArgb(r.Next(256), r.Next(120), r.Next(256)), SymbolType.None);
                 f1_curve.Line.Width = 3F;
                 f1_curve.Symbol.Size = 2F;
                 f1_curve.Tag = "Middle";
-                GraphInfo.Add(filename, DataBase.MiddleMin, DataBase.MiddleMax);
+                GraphInfo.Add(filename, DataBase.xColumn, DataBase.yColumn, DataBase.Min, DataBase.Max);
                 zedGraphControl1.AxisChange();
                 zedGraphControl1.Invalidate();
             }
@@ -1525,12 +1280,12 @@ namespace GraphReader
                     }
                     Random r = new Random();
                     Random g = new Random();
-                    String cutname = DataBase.Title.Remove(DataBase.Title.LastIndexOf("."));
-                    LineItem f1_curve = myPane.AddCurve(cutname + "_middle.txt", list, Color.FromArgb(r.Next(256), r.Next(120), r.Next(256)), SymbolType.None);
+
+                    LineItem f1_curve = myPane.AddCurve(filename, list, Color.FromArgb(r.Next(256), r.Next(120), r.Next(256)), SymbolType.None);
                     f1_curve.Line.Width = 3F;
                     f1_curve.Symbol.Size = 2F;
                     f1_curve.Tag = "Middle";
-                    GraphInfo.Add(filename, Convert.ToSingle(20 * Math.Log10(DataBase.MiddleMin)), Convert.ToSingle(20 * Math.Log10(DataBase.MiddleMax)));
+                    GraphInfo.Add(filename, DataBase.xColumn, DataBase.yColumn, Convert.ToSingle(20 * Math.Log10(DataBase.MiddleMin)), Convert.ToSingle(20 * Math.Log10(DataBase.MiddleMax)));
                     zedGraphControl1.AxisChange();
                     zedGraphControl1.Invalidate();
                 }
@@ -1564,12 +1319,12 @@ namespace GraphReader
 
                 }
                 Random r = new Random();                
-                String cutname = DataBase.Title.Remove(DataBase.Title.LastIndexOf("."));
-                LineItem f1_curve = myPane.AddCurve(cutname + "_median.txt", list, Color.FromArgb(r.Next(256), r.Next(120), r.Next(256)), SymbolType.None);
+                
+                LineItem f1_curve = myPane.AddCurve(filename, list, Color.FromArgb(r.Next(256), r.Next(120), r.Next(256)), SymbolType.None);
                 f1_curve.Line.Width = 3F;
                 f1_curve.Symbol.Size = 2F;
                 f1_curve.Tag = "Median";
-                GraphInfo.Add(filename, DataBase.MedianMin, DataBase.MedianMax);
+                GraphInfo.Add(filename, DataBase.xColumn, DataBase.yColumn, DataBase.Min, DataBase.Max);
                 zedGraphControl1.AxisChange();
                 zedGraphControl1.Invalidate();
             }
@@ -1596,13 +1351,13 @@ namespace GraphReader
                         }
 
                     }
-                    Random r = new Random();                    
-                    String cutname = DataBase.Title.Remove(DataBase.Title.LastIndexOf("."));
-                    LineItem f1_curve = myPane.AddCurve(cutname + "_median.txt", list, Color.FromArgb(r.Next(256), r.Next(120), r.Next(256)), SymbolType.None);
+                    Random r = new Random();
+
+                    LineItem f1_curve = myPane.AddCurve(filename, list, Color.FromArgb(r.Next(256), r.Next(120), r.Next(256)), SymbolType.None);
                     f1_curve.Line.Width = 3F;
                     f1_curve.Symbol.Size = 2F;
                     f1_curve.Tag = "Median";
-                    GraphInfo.Add(filename, Convert.ToSingle(20 * Math.Log10(DataBase.MedianMin)), Convert.ToSingle(20 * Math.Log10(DataBase.MedianMax)));
+                    GraphInfo.Add(filename, DataBase.xColumn, DataBase.yColumn, Convert.ToSingle(20 * Math.Log10(DataBase.MedianMin)), Convert.ToSingle(20 * Math.Log10(DataBase.MedianMax)));
                     zedGraphControl1.AxisChange();
                     zedGraphControl1.Invalidate();
                 }
@@ -1623,12 +1378,6 @@ namespace GraphReader
                 {
                     myPane.CurveList.RemoveAt(myPane.CurveList.IndexOf(removeGraphName));
                     GraphInfo.Remove(removeGraphName);
-                    RemoveSheelds();
-                    Loading = true;
-                    textBoxStart.Text = "";
-                    textBoxFinish.Text = "";
-                    textBoxStep.Text = "";
-                    Loading = false;
                 }
                 catch (Exception)
                 {
@@ -1648,12 +1397,6 @@ namespace GraphReader
                 {
                     myPane.CurveList.RemoveAt(myPane.CurveList.IndexOf(removeGraphName));
                     GraphInfo.Remove(removeGraphName);
-                    RemoveSheelds();
-                    Loading = true;
-                    textBoxStart.Text = "";
-                    textBoxFinish.Text = "";
-                    textBoxStep.Text = "";
-                    Loading = false;
                 }
                 catch (Exception)
                 {
@@ -1673,12 +1416,6 @@ namespace GraphReader
                 {
                     myPane.CurveList.RemoveAt(myPane.CurveList.IndexOf(removeGraphName));
                     GraphInfo.Remove(removeGraphName);
-                    RemoveSheelds();
-                    Loading = true;
-                    textBoxStart.Text = "";
-                    textBoxFinish.Text = "";
-                    textBoxStep.Text = "";
-                    Loading = false;
                 }
                 catch (Exception)
                 {
@@ -1692,90 +1429,85 @@ namespace GraphReader
         }
         private void ReDrawAllGraphs(object sender, EventArgs e)
         {
+
             zedGraphControl1.AxisChange();
             zedGraphControl1.Invalidate();
         }
         #endregion
 
         #region Reading
-        public void FileReading(String fileadress)
-        {
-            ReadingStep1(fileadress);
+        public string[,] FileReading(String fileadress)
+        {            
+            List<string> dataMassive = GetStringMassive(fileadress);
+            string[,] cells = null;
+            if (dataMassive.Count > 0)
+            {
+                string separator = "";
+                if (SettingsForm.DelimeterIndex == -1)
+                {
+                    separator = GetSeparator(dataMassive);
+                }
+                else
+                {
+                    string[] setDelimeter = { "\t", " ", ".", ",", ";" };
+                    separator = setDelimeter[SettingsForm.DelimeterIndex];
+                }
+                int skiplines = DetectSkipLines(dataMassive, separator);
+                cells = GetCells(dataMassive, separator, skiplines);
+            }
+            else
+            {
+                breaking = true;
+            }
+            return cells;
         }
-        private void ReadingStep1(String fileAdress)
+        
+        private List<String> GetStringMassive(String fileAdress)
         {
             StreamReader sr = new StreamReader(fileAdress);
-            NumberOfLines = 0;
+            int numberOfLines = 0;
             string varline = sr.ReadLine();
             while (varline != null)
             {
                 if (!(varline == ""))
                 {
-                    NumberOfLines++;
+                    numberOfLines++;
                 }
                 varline = sr.ReadLine();
             }
-            MassivesDataLines = NumberOfLines - SkipLines;
-            DataMassive = new List<string>(MassivesDataLines);
+            List<string> stringMassive = new List<string>(numberOfLines);
 
             sr = new StreamReader(fileAdress);
-            for (int i = 0; i < SkipLines; i++)
+            for (int i = 0; i < numberOfLines; i++)
             {
-                sr.ReadLine();
-            }
-            for (int i = 0; i < MassivesDataLines; i++)
-            {
-                DataMassive.Add(sr.ReadLine());
+                stringMassive.Add(sr.ReadLine());
             }
             sr.Close();
 
-            ReadingStep2(fileAdress);
+            return stringMassive;            
         }
-        private void ReadingStep2(String fileAdress)
+        private string GetSeparator(List<string> stringMassive)
         {
             //
             // Separator Determination
             //            
             breaking = false;
+            bool keepgoing = true;
+            string Delimeter = "";
 
-            if (checkBoxDelimeter.Checked)
+            //if (checkBoxDelimeter.Checked)
+            //{
+            int skiplimit = stringMassive.Count / 10;
+            for (int skipline = 0; skipline < skiplimit && keepgoing; skipline++)
             {
-                String sline = DataMassive[0];
-                String vline = sline;
-                int NofTabs = 0;
-                while (!(vline.IndexOf("\t") == -1))
-                {
-                    vline = vline.Substring(vline.IndexOf("\t") + 1);
-                    NofTabs++;
-                }
-                vline = sline;
-                int NofSpaces = 0;
-                while (!(vline.IndexOf(" ") == -1))
-                {
-                    vline = vline.Substring(vline.IndexOf(" ") + 1);
-                    NofSpaces++;
-                }
-                vline = sline;
-                int NofSemiCal = 0;
-                while (!(vline.IndexOf(";") == -1))
-                {
-                    vline = vline.Substring(vline.IndexOf(";") + 1);
-                    NofSemiCal++;
-                }
-                vline = sline;
-                int NofComma = 0;
-                while (!(vline.IndexOf(",") == -1))
-                {
-                    vline = vline.Substring(vline.IndexOf(",") + 1);
-                    NofComma++;
-                }
-                vline = sline;
-                int NofPoints = 0;
-                while (!(vline.IndexOf(".") == -1))
-                {
-                    vline = vline.Substring(vline.IndexOf(".") + 1);
-                    NofPoints++;
-                }
+                String sline = stringMassive[skipline];
+
+                int NofTabs = GetNumberOf(sline, "\t");
+                int NofSpaces = GetNumberOf(sline, " ");
+                int NofSemiCal = GetNumberOf(sline, ";");
+                int NofComma = GetNumberOf(sline, ",");
+                int NofPoints = GetNumberOf(sline, ".");
+
 
                 int NofTabsNew;
                 int NofSpacesNew;
@@ -1784,48 +1516,16 @@ namespace GraphReader
                 int NofPointsNew;
                 int NumOfDelim = 0;
 
-                for (int k = 1; k < MassivesDataLines; k++)
+                for (int k = skipline + 1; k < stringMassive.Count; k++)
                 {
-                    sline = DataMassive[k];
-                    vline = sline;
-                    NofTabsNew = 0;
-                    while (!(vline.IndexOf("\t") == -1))
-                    {
-                        vline = vline.Substring(vline.IndexOf("\t") + 1);
-                        NofTabsNew++;
-                    }
+                    sline = stringMassive[k];
+                    NofTabsNew = GetNumberOf(sline, "\t");
+                    NofSpacesNew = GetNumberOf(sline, " ");
+                    NofSemiCalNew = GetNumberOf(sline, ";");
+                    NofPointsNew = GetNumberOf(sline, ",");
+                    NofCommaNew = GetNumberOf(sline, ".");
 
-                    vline = sline;
-                    NofSpacesNew = 0;
-                    while (!(vline.IndexOf(" ") == -1))
-                    {
-                        vline = vline.Substring(vline.IndexOf(" ") + 1);
-                        NofSpacesNew++;
-                    }
 
-                    vline = sline;
-                    NofSemiCalNew = 0;
-                    while (!(vline.IndexOf(";") == -1))
-                    {
-                        vline = vline.Substring(vline.IndexOf(";") + 1);
-                        NofSemiCalNew++;
-                    }
-
-                    vline = sline;
-                    NofCommaNew = 0;
-                    while (!(vline.IndexOf(",") == -1))
-                    {
-                        vline = vline.Substring(vline.IndexOf(",") + 1);
-                        NofCommaNew++;
-                    }
-
-                    vline = sline;
-                    NofPointsNew = 0;
-                    while (!(vline.IndexOf(".") == -1))
-                    {
-                        vline = vline.Substring(vline.IndexOf(".") + 1);
-                        NofPointsNew++;
-                    }
                     if (!(NofTabsNew == NofTabs))
                     {
                         NofTabs = 0;
@@ -1889,112 +1589,139 @@ namespace GraphReader
                         }
                     }
 
+
                     if (NofTabs == 0 && NofSpaces == 0 && NofSemiCal == 0 && NofComma == 0)
                     {
-                        MessageBox.Show("Не обнаружен разделитель столбцов. Попробуйте ввести разделитель столбцов вручную.", "Невозможно прочитать файл",
-                            MessageBoxButtons.OK, MessageBoxIcon.Stop);
-                        breaking = true;
                         break;
                     }
-                    if (sline.Substring(sline.LastIndexOf(Delimeter) + 1) == "")
-                    {
-                        NumberOfColumns = NumOfDelim;
-                    }
                     else
                     {
-                        NumberOfColumns = NumOfDelim + 1;
+                        if (k == stringMassive.Count - 1)
+                        {
+                            keepgoing = false;
+                        }
                     }
                 }
             }
-            else
+            if (keepgoing)
             {
-                string[] setDelimeter = { "\t", " ", ".", ",", ";" };
-                Delimeter = setDelimeter[comboBoxDelimeter.SelectedIndex];
-                String vline = DataMassive[0];
-                String sline = vline;
-
-                int NumOfDelim = 0;
-                if (Delimeter == "")
-                {
-                    NumberOfColumns = 1;
-                }
-                else
-                {
-                    while (!(vline.IndexOf(Delimeter) == -1))
-                    {
-                        vline = vline.Substring(vline.IndexOf(Delimeter) + 1);
-                        NumOfDelim++;
-                    }
-
-                    if (sline.Substring(sline.LastIndexOf(Delimeter) + 1) == "")
-                    {
-                        NumberOfColumns = NumOfDelim;
-                    }
-                    else
-                    {
-                        NumberOfColumns = NumOfDelim + 1;
-                    }
-                }
-
+                MessageBox.Show("Не обнаружен разделитель столбцов. Попробуйте ввести разделитель столбцов вручную.", "Невозможно прочитать файл",
+                             MessageBoxButtons.OK, MessageBoxIcon.Stop);
+                breaking = true;
             }
-            if (!(breaking))
-            {
-                ReadingStep3(fileAdress);
-            }
+            //}
+            //// следующая часть кода к удалению часть кода к удалению
+            //else
+            //{
+            //    string[] setDelimeter = { "\t", " ", ".", ",", ";" };
+            //    Delimeter = setDelimeter[comboBoxDelimeter.SelectedIndex];
+            //    String vline = stringMassive[0];
+            //    String sline = vline;
+
+            //    int NumOfDelim = 0;
+            //    if (Delimeter == "")
+            //    {
+            //        NumberOfColumns = 1;
+            //    }
+            //    else
+            //    {
+            //        while (!(vline.IndexOf(Delimeter) == -1))
+            //        {
+            //            vline = vline.Substring(vline.IndexOf(Delimeter) + 1);
+            //            NumOfDelim++;
+            //        }
+
+            //        if (sline.Substring(sline.LastIndexOf(Delimeter) + 1) == "")
+            //        {
+            //            NumberOfColumns = NumOfDelim;
+            //        }
+            //        else
+            //        {
+            //            NumberOfColumns = NumOfDelim + 1;
+            //        }
+            //    }
+
+            //}
+            return Delimeter;
+
         }
-        private void ReadingStep3(String fileAdress)
+
+        private int GetColumnNumber(List<string> stringMassive, string separator)
         {
-            DataBase = new DataElement(fileAdress, MassivesDataLines);
-            StringTable = new Classes.StringTable(fileAdress, NumberOfColumns, MassivesDataLines);
-            float valueX, valueY;
-            String sline, xline, yline;
-            int xCol = comboBoxX.SelectedIndex;
-            int yCol = comboBoxY.SelectedIndex;
-            string[] substrings;
-            for (int i = 0; i < MassivesDataLines; i++)
+            string sline = stringMassive[stringMassive.Count - 1];
+            int colNumber = GetNumberOf(sline, separator);
+
+            if (sline.Substring(sline.LastIndexOf(separator) + 1) != "")
             {
-                sline = DataMassive[i];
-                if (sline == "")
-                {
-                    sline = "";
-                    continue;
-                }
-                substrings = sline.Split(Convert.ToChar(Delimeter));
-
-                if ((xCol + 1) > NumberOfColumns || (yCol + 1) > NumberOfColumns)
-                {
-                    MessageBox.Show("Указанной колонки не существует", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Stop);
-                    breaking = true;
-                    goto End;
-                }
-                xline = substrings[xCol];
-                yline = substrings[yCol];
-                for (int k = 0; k < NumberOfColumns; k++)
-                {
-                    StringTable.Cell[k, i] = substrings[k];
-                }
-
-                xline = xline.Replace('\0', '.').Replace(".", ",");
-                yline = yline.Replace('\0', '.').Replace(".", ",");
-                try
-                {
-                    valueX = Convert.ToSingle(xline);
-                    valueY = Convert.ToSingle(yline);
-                }
-                catch (Exception)
-                {
-                    String message = "Строчка " + i + " в файле " + LastFileAdress + " не удовлетворяет формату.";
-                    MessageBox.Show(message, "Дальнейшее чтение файла не возможно", MessageBoxButtons.OK, MessageBoxIcon.Stop);
-                    breaking = true;
-                    goto End;
-                }
-                DataBase.Values[i, 0] = valueX;
-                DataBase.Values[i, 1] = valueY;
-
+                colNumber++;
             }
-            DataBase.FindMinMax();
-        End: ;
+            
+            return colNumber;
         }
+        private int DetectSkipLines(List<string> stringMassive, string separator)
+        {
+            string line = "";
+            bool keepgoing = true;
+            int skiplines = 0;
+            int numberOfColumns = GetNumberOf(stringMassive[stringMassive.Count - 1], separator);
+
+            for (int i = stringMassive.Count - 1; i >= 0 && keepgoing; i--)
+            {
+                line = stringMassive[i];
+                string[] arr = line.Split(Convert.ToChar(separator));
+                for (int m = 0; m < numberOfColumns; m++)
+                {
+                    string cell = arr[m];
+                    try
+                    {
+                        float var = Convert.ToSingle(cell.Replace(".", ","));
+                    }
+                    catch (Exception)
+                    {
+                        keepgoing = false;
+                        skiplines = i + 1;
+                        break;
+                    }
+                }
+            }
+            return skiplines;
+        }
+        private string[,] GetCells(List<string> stringMassive, string separator, int skipline)
+        {
+            int columnNumber = GetColumnNumber(stringMassive, separator);
+
+            string[,] cells = new string[columnNumber, stringMassive.Count - skipline];
+            string sline;
+            string[] substrings;
+            for (int i = skipline; i < stringMassive.Count; i++)
+            {
+                sline = stringMassive[i];
+
+                substrings = sline.Split(Convert.ToChar(separator));
+
+                for (int k = 0; k < columnNumber; k++)
+                {
+                    cells[k, i - skipline] = substrings[k];
+                }
+            }
+            return cells;
+        }
+
+        
+        
+        private int GetNumberOf(string line, string sep)
+        {
+            int NofSep = 0;
+            String vline = line;
+            while (!(vline.IndexOf(sep) == -1))
+            {
+                vline = vline.Substring(vline.IndexOf(sep) + 1);
+                NofSep++;
+            }
+            return NofSep;
+        }
+
+        
         #endregion
 
         #region Scenarios
@@ -2019,263 +1746,284 @@ namespace GraphReader
         }
         private void OpenFileScenario()
         {
+            //openFileDialog1.FileName = "";
+            //if (openFileDialog1.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            //{
+            //    if (treeViewGraphBrowser.Nodes.Count == 0)
+            //    {
+            //        TreeNode treeNode1 = new TreeNode("(Все медианные)");
+            //        TreeNode treeNode2 = new TreeNode("(Все средние)");
+            //        TreeNode treeNode = new TreeNode("(Выделить все)", new TreeNode[] {treeNode1, treeNode2});
+            //        treeNode1.Tag = "allmadian";
+            //        treeNode2.Tag = "allmiddle";
+            //        treeNode.Tag = "selectAll";
+            //        treeViewGraphBrowser.Nodes.Add(treeNode);
+            //    }
+            //    Checking = true;
+            //    treeViewGraphBrowser.Nodes[0].Checked = false;
+            //    treeViewGraphBrowser.Nodes[0].Nodes[0].Checked = false;
+            //    treeViewGraphBrowser.Nodes[0].Nodes[1].Checked = false;
+            //    Checking = false;
+
+            //    for (int i = 0; i < openFileDialog1.FileNames.Length; i++)
+            //    {
+            //        System.Windows.Forms.TreeNode treeNode1 = new System.Windows.Forms.TreeNode("Медианное значение");
+            //        System.Windows.Forms.TreeNode treeNode2 = new System.Windows.Forms.TreeNode("Среднее значение");
+            //        TreeNode treeNode = new TreeNode(openFileDialog1.FileNames[i], new System.Windows.Forms.TreeNode[] { treeNode1, treeNode2 });
+            //        ContextMenuStrip Menu = new ContextMenuStrip();
+
+            //        ToolStripMenuItem openLabel = new ToolStripMenuItem();
+            //        openLabel.Text = "в TextReader";
+            //        openLabel.Tag = openFileDialog1.FileNames[i];
+            //        openLabel.Click += new EventHandler(ContextMenu_Open);
+
+            //        ToolStripMenuItem deleteLabel = new ToolStripMenuItem();
+            //        deleteLabel.Text = "Удалить";
+            //        deleteLabel.Tag = openFileDialog1.FileNames[i];
+            //        deleteLabel.Click += new EventHandler(ContextMenu_Delete);
+
+            //        ToolStripMenuItem addAllMedianLabel = new ToolStripMenuItem();
+            //        addAllMedianLabel.Text = "Выбрать все медианные";
+            //        addAllMedianLabel.Click += new EventHandler(treeView_addAllMedian);                    
+
+            //        ToolStripMenuItem addAllMiddleLabel = new ToolStripMenuItem();
+            //        addAllMiddleLabel.Text = "Выбрать все средние";
+            //        addAllMiddleLabel.Click += new EventHandler(treeView_addAllMiddle);                    
+
+            //        Menu.Items.AddRange(new ToolStripMenuItem[] { openLabel, addAllMedianLabel, addAllMiddleLabel, deleteLabel });  //, removeAllMedianLabel, removeAllMiddleLabel
+
+            //        treeNode.ContextMenuStrip = Menu;
+            //        treeViewGraphBrowser.Nodes.Add(treeNode);
+            //    }
+                //InitializeComboBoxes();
+            //}
+        }
+        private void OpenFileScenario(string[] Files)
+        {
+            //if (treeViewGraphBrowser.Nodes.Count == 0)
+            //{
+            //    TreeNode treeNode1 = new TreeNode("(Все медианные)");
+            //    TreeNode treeNode2 = new TreeNode("(Все средние)");
+            //    TreeNode treeNode = new TreeNode("(Выделить все)", new TreeNode[] { treeNode1, treeNode2 });
+            //    treeNode1.Tag = "allmadian";
+            //    treeNode2.Tag = "allmiddle";
+            //    treeNode.Tag = "selectAll";
+            //    treeViewGraphBrowser.Nodes.Add(treeNode);
+            //}
+            //Checking = true;
+            //treeViewGraphBrowser.Nodes[0].Checked = false;
+            //treeViewGraphBrowser.Nodes[0].Nodes[0].Checked = false;
+            //treeViewGraphBrowser.Nodes[0].Nodes[1].Checked = false;
+            //Checking = false;
+
+            //for (int i = 0; i < Files.Length; i++)
+            //{
+            //    System.Windows.Forms.TreeNode treeNode1 = new System.Windows.Forms.TreeNode("Медианное значение");
+            //    System.Windows.Forms.TreeNode treeNode2 = new System.Windows.Forms.TreeNode("Среднее значение");
+            //    TreeNode treeNode = new TreeNode(Files[i], new System.Windows.Forms.TreeNode[] { treeNode1, treeNode2 });
+            //    ContextMenuStrip Menu = new ContextMenuStrip();
+
+            //    ToolStripMenuItem openLabel = new ToolStripMenuItem();
+            //    openLabel.Text = "в TextReader";
+            //    openLabel.Tag = Files[i];
+            //    openLabel.Click += new EventHandler(ContextMenu_Open);
+
+            //    ToolStripMenuItem deleteLabel = new ToolStripMenuItem();
+            //    deleteLabel.Text = "Удалить";
+            //    deleteLabel.Tag = Files[i];
+            //    deleteLabel.Click += new EventHandler(ContextMenu_Delete);
+
+            //    ToolStripMenuItem addAllMedianLabel = new ToolStripMenuItem();
+            //    addAllMedianLabel.Text = "Выбрать все медианные";
+            //    addAllMedianLabel.Click += new EventHandler(treeView_addAllMedian);
+
+            //    //ToolStripMenuItem removeAllMedianLabel = new ToolStripMenuItem();
+            //    //removeAllMedianLabel.Text = "Снять все медианные";
+            //    //removeAllMedianLabel.Click += new EventHandler(treeView_removeAllMedian);
+
+            //    ToolStripMenuItem addAllMiddleLabel = new ToolStripMenuItem();
+            //    addAllMiddleLabel.Text = "Выбрать все средние";
+            //    addAllMiddleLabel.Click += new EventHandler(treeView_addAllMiddle);
+
+            //    //ToolStripMenuItem removeAllMiddleLabel = new ToolStripMenuItem();
+            //    //removeAllMiddleLabel.Text = "Снять все средние";
+            //    //removeAllMiddleLabel.Click += new EventHandler(treeView_removeAllMiddle);
+
+            //    Menu.Items.AddRange(new ToolStripMenuItem[] { openLabel, addAllMedianLabel, addAllMiddleLabel, deleteLabel });  //, removeAllMedianLabel, removeAllMiddleLabel
+
+            //    treeNode.ContextMenuStrip = Menu;
+            //    treeViewGraphBrowser.Nodes.Add(treeNode);
+            //}
+        }
+
+        void LoadFileScenario()
+        {
             openFileDialog1.FileName = "";
             if (openFileDialog1.ShowDialog() == System.Windows.Forms.DialogResult.OK)
             {
-                if (treeView1.Nodes.Count == 0)
-                {
-                    TreeNode treeNode1 = new TreeNode("(Все медианные)");
-                    TreeNode treeNode2 = new TreeNode("(Все средние)");
-                    TreeNode treeNode = new TreeNode("(Выделить все)", new TreeNode[] {treeNode1, treeNode2});
-                    treeNode1.Tag = "allmadian";
-                    treeNode2.Tag = "allmiddle";
-                    treeNode.Tag = "selectAll";
-                    treeView1.Nodes.Add(treeNode);
-                }
-                Checking = true;
-                treeView1.Nodes[0].Checked = false;
-                treeView1.Nodes[0].Nodes[0].Checked = false;
-                treeView1.Nodes[0].Nodes[1].Checked = false;
-                Checking = false;
-
                 for (int i = 0; i < openFileDialog1.FileNames.Length; i++)
                 {
-                    System.Windows.Forms.TreeNode treeNode1 = new System.Windows.Forms.TreeNode("Медианное значение");
-                    System.Windows.Forms.TreeNode treeNode2 = new System.Windows.Forms.TreeNode("Среднее значение");
-                    TreeNode treeNode = new TreeNode(openFileDialog1.FileNames[i], new System.Windows.Forms.TreeNode[] { treeNode1, treeNode2 });
-                    ContextMenuStrip Menu = new ContextMenuStrip();
+                    if (!IsFileLoaded(openFileDialog1.FileNames[i]))
+                    {
+                        string[,] cells = FileReading(openFileDialog1.FileNames[i]);
 
-                    ToolStripMenuItem openLabel = new ToolStripMenuItem();
-                    openLabel.Text = "в TextReader";
-                    openLabel.Tag = openFileDialog1.FileNames[i];
-                    openLabel.Click += new EventHandler(ContextMenu_Open);
+                        if (cells != null)
+                        {
+                            LoadedData.Add(new DataElement2(openFileDialog1.FileNames[i], cells));
 
-                    ToolStripMenuItem deleteLabel = new ToolStripMenuItem();
-                    deleteLabel.Text = "Удалить";
-                    deleteLabel.Tag = openFileDialog1.FileNames[i];
-                    deleteLabel.Click += new EventHandler(ContextMenu_Delete);
+                            TreeNode[] nodes = GenerateNodes(LoadedData[LoadedData.Count - 1].ColumnsCount - 1);
+                            TreeNode treeNode = new TreeNode(Path.GetFileNameWithoutExtension(openFileDialog1.FileNames[i]), nodes);
+                            treeNode.Tag = openFileDialog1.FileNames[i];
+                            ContextMenuStrip Menu = new ContextMenuStrip();
 
-                    ToolStripMenuItem addAllMedianLabel = new ToolStripMenuItem();
-                    addAllMedianLabel.Text = "Выбрать все медианные";
-                    addAllMedianLabel.Click += new EventHandler(treeView_addAllMedian);
+                            ToolStripMenuItem expandLabel = new ToolStripMenuItem();
+                            expandLabel.Text = "Развернуть";
+                            expandLabel.Tag = openFileDialog1.FileNames[i];
+                            expandLabel.Click += new EventHandler(ContextMenu_Expand);
+                            
+                            ToolStripMenuItem collapseLabel = new ToolStripMenuItem();
+                            collapseLabel.Text = "Свернуть";
+                            collapseLabel.Tag = openFileDialog1.FileNames[i];
+                            collapseLabel.Click += new EventHandler(ContextMenu_Collapse);
 
-                    //ToolStripMenuItem removeAllMedianLabel = new ToolStripMenuItem();
-                    //removeAllMedianLabel.Text = "Снять все медианные";
-                    //removeAllMedianLabel.Click += new EventHandler(treeView_removeAllMedian);
+                            ToolStripMenuItem openLabel = new ToolStripMenuItem();
+                            openLabel.Text = "в TextReader";
+                            openLabel.Tag = openFileDialog1.FileNames[i];
+                            openLabel.Click += new EventHandler(ContextMenu_Open);
 
-                    ToolStripMenuItem addAllMiddleLabel = new ToolStripMenuItem();
-                    addAllMiddleLabel.Text = "Выбрать все средние";
-                    addAllMiddleLabel.Click += new EventHandler(treeView_addAllMiddle);
+                            ToolStripMenuItem deleteLabel = new ToolStripMenuItem();
+                            deleteLabel.Text = "Удалить";
+                            deleteLabel.Tag = openFileDialog1.FileNames[i];
+                            deleteLabel.Click += new EventHandler(ContextMenu_Delete);
 
-                    //ToolStripMenuItem removeAllMiddleLabel = new ToolStripMenuItem();
-                    //removeAllMiddleLabel.Text = "Снять все средние";
-                    //removeAllMiddleLabel.Click += new EventHandler(treeView_removeAllMiddle);
+                            Menu.Items.AddRange(new ToolStripMenuItem[] { expandLabel, collapseLabel, openLabel, deleteLabel });
 
-                    Menu.Items.AddRange(new ToolStripMenuItem[] { openLabel, addAllMedianLabel, addAllMiddleLabel, deleteLabel });  //, removeAllMedianLabel, removeAllMiddleLabel
-
-                    treeNode.ContextMenuStrip = Menu;
-                    treeView1.Nodes.Add(treeNode);
-                }
-                InitializeComboBoxes();
+                            treeNode.ContextMenuStrip = Menu;
+                            treeViewFilesBrowser.Nodes.Add(treeNode);
+                        }
+                    }
+                }                
             }
         }
-        private void CreateWordDocument(List<List<String>> dataMedian, List<List<String>> dataMiddle)
+
+        private TreeNode[] GenerateNodes(int p)
+        {            
+            TreeNode[] nodes =  new TreeNode[p];
+            if (p > 4)
+            {
+                p = 4;
+            }
+            string[] alphbet = new string[] { "B", "C", "D", "E", "F" };
+            for (int i = 0; i < p; i++)
+            {
+                nodes[i] = new TreeNode(String.Concat("Посторить A-", alphbet[i]));             
+            }
+            return nodes;
+        }
+
+        private bool IsFileLoaded(string p)
         {
-            try
+            bool ans = false;
+            for (int i = 0; i < LoadedData.Count; i++)
             {
-                if (dataMedian.Count > 1 || dataMiddle.Count > 1)
+                if (LoadedData[i].Name == p)
                 {
-
-                    //Create an instance for word app
-                    Microsoft.Office.Interop.Word.Application winword = new Microsoft.Office.Interop.Word.Application();
-
-                    //Set animation status for word application
-                    winword.ShowAnimation = false;
-
-                    //Set status for word application is to be visible or not.
-                    winword.Visible = false;
-
-                    //Create a missing variable for missing value
-                    object missing = System.Reflection.Missing.Value;
-
-                    //Create a new document
-                    Microsoft.Office.Interop.Word.Document document = winword.Documents.Add(ref missing, ref missing, ref missing, ref missing);
-
-                    //Add header into the document
-                    foreach (Microsoft.Office.Interop.Word.Section section in document.Sections)
-                    {
-
-                        //Get the header range and add the header details.
-                        Microsoft.Office.Interop.Word.Range headerRange = section.Headers[Microsoft.Office.Interop.Word.WdHeaderFooterIndex.wdHeaderFooterPrimary].Range;
-                        headerRange.Fields.Add(headerRange, Microsoft.Office.Interop.Word.WdFieldType.wdFieldPage);
-                        headerRange.ParagraphFormat.Alignment = Microsoft.Office.Interop.Word.WdParagraphAlignment.wdAlignParagraphRight;
-                        headerRange.Font.ColorIndex = Microsoft.Office.Interop.Word.WdColorIndex.wdAuto;
-                        headerRange.Font.Size = 10;
-                        headerRange.Text = "Таблица создана автоматически программой GraphReader v" + version; ;
-                    }
-
-                    //Add the footers into the document
-                    foreach (Microsoft.Office.Interop.Word.Section wordSection in document.Sections)
-                    {
-
-                        //Get the footer range and add the footer details.
-                        Microsoft.Office.Interop.Word.Range footerRange = wordSection.Footers[Microsoft.Office.Interop.Word.WdHeaderFooterIndex.wdHeaderFooterPrimary].Range;
-                        footerRange.Font.ColorIndex = Microsoft.Office.Interop.Word.WdColorIndex.wdAuto;
-                        footerRange.Font.Size = 10;
-                        footerRange.ParagraphFormat.Alignment = Microsoft.Office.Interop.Word.WdParagraphAlignment.wdAlignParagraphRight;
-                        footerRange.Text = "Таблица создана автоматически программой GraphReader v" + version;
-                    }
-
-                    //adding text to document
-                    //document.Content.SetRange(0, 0);
-                    //document.Content.Text = "Таблица медианных значений" + Environment.NewLine;
-
-
-
-
-                    if (dataMedian.Count > 1)
-                    {
-                        //Add paragraph with Heading 1 style
-                        Microsoft.Office.Interop.Word.Paragraph para1 = document.Content.Paragraphs.Add(ref missing);
-                        //object styleHeading1 = "Заголовок 1";
-                        //para1.Range.set_Style(ref styleHeading1);
-                        para1.Range.Text = "Таблица медианных значений";
-                        para1.Range.InsertParagraphAfter();
-
-                        //Create a 5X5 table and insert some dummy record
-                        Table firstTable = document.Tables.Add(para1.Range, dataMedian.Count, dataMedian[0].Count, ref missing, ref missing);
-
-                        firstTable.Borders.Enable = 1;
-                        foreach (Row row in firstTable.Rows)
-                        {
-                            foreach (Cell cell in row.Cells)
-                            {
-                                //Header row
-                                if (cell.RowIndex == 1)
-                                {
-                                    cell.Range.Text = dataMedian[0][cell.ColumnIndex - 1];
-                                    cell.Range.Font.Bold = 1;
-                                    //other format properties goes here
-                                    cell.Range.Font.Name = "Times New Roman";
-                                    cell.Range.Font.Size = 10;
-                                    //cell.Range.Font.ColorIndex = WdColorIndex.wdGray25;                            
-                                    cell.Shading.BackgroundPatternColor = WdColor.wdColorGray25;
-                                    //Center alignment for the Header cells
-                                    cell.VerticalAlignment = WdCellVerticalAlignment.wdCellAlignVerticalCenter;
-                                    cell.Range.ParagraphFormat.Alignment = WdParagraphAlignment.wdAlignParagraphCenter;
-
-                                }
-                                //Data row
-                                else
-                                {
-                                    cell.Range.Text = cell.Range.Text = dataMedian[cell.RowIndex - 1][cell.ColumnIndex - 1];
-                                    cell.VerticalAlignment = WdCellVerticalAlignment.wdCellAlignVerticalCenter;
-                                    cell.Range.ParagraphFormat.Alignment = WdParagraphAlignment.wdAlignParagraphCenter;
-                                    if (cell.ColumnIndex == 1)
-                                    {
-                                        cell.Range.Font.Size = 8;
-                                    }
-                                    else
-                                    {
-                                        cell.Range.Font.Size = 10;
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    if (dataMiddle.Count > 1)
-                    {
-                        //Add paragraph with Heading 2 style
-                        Microsoft.Office.Interop.Word.Paragraph para2 = document.Content.Paragraphs.Add(ref missing);
-                        //object styleHeading2 = "Заголовок 1";
-                        //para2.Range.set_Style(ref styleHeading2);
-                        para2.Range.Text = Environment.NewLine + "Таблица средних значений";
-                        para2.Range.InsertParagraphAfter();
-
-                        //Create a 5X5 table and insert some dummy record
-                        Table secondTable = document.Tables.Add(para2.Range, dataMiddle.Count, dataMiddle[0].Count, ref missing, ref missing);
-
-                        secondTable.Borders.Enable = 1;
-                        foreach (Row row in secondTable.Rows)
-                        {
-                            foreach (Cell cell in row.Cells)
-                            {
-                                //Header row
-                                if (cell.RowIndex == 1)
-                                {
-                                    cell.Range.Text = dataMiddle[0][cell.ColumnIndex - 1];
-                                    cell.Range.Font.Bold = 1;
-                                    //other format properties goes here
-                                    cell.Range.Font.Name = "Times New Roman";
-                                    cell.Range.Font.Size = 10;
-                                    //cell.Range.Font.ColorIndex = WdColorIndex.wdGray25;                            
-                                    cell.Shading.BackgroundPatternColor = WdColor.wdColorGray25;
-                                    //Center alignment for the Header cells
-                                    cell.VerticalAlignment = WdCellVerticalAlignment.wdCellAlignVerticalCenter;
-                                    cell.Range.ParagraphFormat.Alignment = WdParagraphAlignment.wdAlignParagraphCenter;
-
-                                }
-                                //Data row
-                                else
-                                {
-                                    cell.Range.Text = dataMiddle[cell.RowIndex - 1][cell.ColumnIndex - 1];
-                                    cell.VerticalAlignment = WdCellVerticalAlignment.wdCellAlignVerticalCenter;
-                                    cell.Range.ParagraphFormat.Alignment = WdParagraphAlignment.wdAlignParagraphCenter;
-                                    if (cell.ColumnIndex == 1)
-                                    {
-                                        cell.Range.Font.Size = 8;
-                                    }
-                                    else
-                                    {
-                                        cell.Range.Font.Size = 10;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    string name = "TableM";
-
-                    //Save the document
-                    String writingAdress = textBoxExportPath.Text + "\\" + name + ".docx";
-
-                    int extN = 1;
-                    while (File.Exists(writingAdress))
-                    {
-                        writingAdress = textBoxExportPath.Text + "\\" + name + " (" + extN + ")" + ".docx";
-                        extN++;
-                    }
-
-                    object filename = writingAdress;
-                    document.SaveAs2(ref filename);
-                    ((_Document)document).Close(ref missing, ref missing, ref missing);
-                    document = null;
-                    ((_Application)winword).Quit(ref missing, ref missing, ref missing);
-                    winword = null;
-                    MessageBox.Show("Создание документа завершено");
-                }
-                else
-                {
-                    MessageBox.Show("Не выбрано ни одного среднего или медианного значения");
+                    ans = true;
+                    break;
                 }
             }
-            catch (Exception ex)
+            return ans;
+        }
+
+        void LoadFileScenario(string[] Files)
+        {
+            treeViewFilesBrowser.BeginUpdate();
+            for (int i = 0; i < Files.Length; i++)
             {
-                MessageBox.Show(ex.Message);
+                if (IsFileLoaded(Files[i]))
+                {
+                    string[,] cells = FileReading(Files[i]);
+
+                    if (cells != null)
+                    {
+                        LoadedData.Add(new DataElement2(Files[i], cells));
+
+                        TreeNode[] nodes = GenerateNodes(LoadedData[LoadedData.Count - 1].ColumnsCount - 1);
+                        TreeNode treeNode = new TreeNode(Path.GetFileNameWithoutExtension(Files[i]), nodes);
+                        treeNode.Tag = Files[i];
+                        ContextMenuStrip Menu = new ContextMenuStrip();
+
+                        ToolStripMenuItem openLabel = new ToolStripMenuItem();
+                        openLabel.Text = "в TextReader";
+                        openLabel.Tag = Files[i];
+                        openLabel.Click += new EventHandler(ContextMenu_Open);
+
+                        ToolStripMenuItem deleteLabel = new ToolStripMenuItem();
+                        deleteLabel.Text = "Удалить";
+                        deleteLabel.Tag = Files[i];
+                        deleteLabel.Click += new EventHandler(ContextMenu_Delete);
+
+                        Menu.Items.AddRange(new ToolStripMenuItem[] { openLabel, deleteLabel });
+
+                        treeNode.ContextMenuStrip = Menu;
+                        treeViewFilesBrowser.Nodes.Add(treeNode);                       
+                    }
+                }
             }
+            treeViewFilesBrowser.EndUpdate();
+        }
+        public void CreateWordDocument(DataTable datatable)
+        {
+            if (datatable.Rows.Count > 0)
+            {                
+                string adress = datatable.TableName;
+                DocX document = DocX.Create(adress);
+                string headlineText = Path.GetFileNameWithoutExtension(datatable.TableName);
+
+                var headLineFormat = new Formatting();
+                headLineFormat.FontFamily = new Xceed.Words.NET.Font("Times New Roman");
+                headLineFormat.Size = 18D;
+                headLineFormat.Position = 12;
+
+                document.InsertParagraph(headlineText, false, headLineFormat);
+
+                // Add a Table to this document.
+                Table t = document.AddTable(datatable.Rows.Count + 1, datatable.Columns.Count);
+                // Specify some properties for this Table.
+                t.Alignment = Alignment.center;
+                //t.Design = TableDesign.MediumGrid1Accent2;
+                
+                // Add content to this Table.
+                for (int c = 0; c < datatable.Columns.Count; c++)
+                {
+                    t.Rows[0].Cells[c].Paragraphs.First().Append(datatable.Columns[c].ColumnName);
+                    for (int l = 0; l < datatable.Rows.Count; l++)
+                    {
+                        t.Rows[l + 1].Cells[c].Paragraphs.First().Append(datatable.Rows[l].ItemArray.ElementAt(c).ToString());
+                    }
+                }
+                document.PageLayout.Orientation = Xceed.Words.NET.Orientation.Landscape;
+                // Insert the Table into the document.
+                document.InsertTable(t);                
+                document.Save();                
+            }          
         }
 
         private void WaitCursorON()
-        {
-            this.Cursor = System.Windows.Forms.Cursors.WaitCursor;
-            tabControl1.Cursor = System.Windows.Forms.Cursors.WaitCursor;
+        {            
+            tableLayoutPanel2.Cursor = System.Windows.Forms.Cursors.WaitCursor;
             zedGraphControl1.Cursor = System.Windows.Forms.Cursors.WaitCursor;
+            splitContainer1.Cursor = System.Windows.Forms.Cursors.WaitCursor;
+            dataGridView1.Cursor = System.Windows.Forms.Cursors.WaitCursor;
+            this.Cursor = System.Windows.Forms.Cursors.WaitCursor;
         }
         private void WaitCursorOFF()
-        {
-            this.Cursor = System.Windows.Forms.Cursors.Default;
-            tabControl1.Cursor = System.Windows.Forms.Cursors.Default;
+        {            
+            tableLayoutPanel2.Cursor = System.Windows.Forms.Cursors.Default;
             zedGraphControl1.Cursor = System.Windows.Forms.Cursors.Default;
+            splitContainer1.Cursor = System.Windows.Forms.Cursors.Default;
+            dataGridView1.Cursor = System.Windows.Forms.Cursors.Default;
+            this.Cursor = System.Windows.Forms.Cursors.Default;
         }
         private string CallFormat(int dec)
         {
@@ -2314,7 +2062,7 @@ namespace GraphReader
         {
             bool answer = true;
             float vl;
-            for (int i = 0; i < MassivesDataLines; i++)
+            for (int i = 0; i < DataBase.Rows; i++)
             {
                 vl = DataBase.Values[i, 1];
 
@@ -2327,11 +2075,11 @@ namespace GraphReader
         }
         private void OpenNumbPad()
         {
-            if (treeView1.Nodes.Count == 0)
+            if (treeViewFilesBrowser.Nodes.Count == 0)
             {
-                OpenFileScenario();
+                LoadFileScenario();
             }
-            if (treeView1.Nodes.Count != 0)
+            if (treeViewFilesBrowser.Nodes.Count != 0)
             {
                 NumbPad = new NumbPad(this);
                 NumbPad.Show();
@@ -2344,13 +2092,379 @@ namespace GraphReader
         }
         private void OpenTableWriter(object sender, EventArgs e)
         {
-            TableWriter = new TableWriter(this);
-            TableWriter.Show();
-            TableWriter.LoadSource();
+            
+        }
+
+        private void AddGraphScenario(string p, int index)
+        {
+            
         }
         #endregion
+
+
+        
+
+        public RadioButton GetActiveRadioButtonModifier()
+        {   
+            for (int i = 0; i < radioSet.Length; i++)
+            {
+                if (radioSet[i].Checked)
+                {
+                    return radioSet[i];
+                }
+            }
+            return null;
+        }
+
+        public void SetActiveRadioButton(RadioButton rb)
+        {
+            for (int i = 0; i < radioSet.Length; i++)
+            {
+                if (radioSet[i].GetHashCode() == rb.GetHashCode())
+                {
+                    radioButtonModifierChanged_trigger = false;
+                    radioSet[i].Checked = true;
+                    radioButtonModifierChanged_trigger = true;
+                }
+            }            
+        }
+
+        private void открытьToolStripMenuItem1_Click(object sender, EventArgs e)
+        {
+            var formsettings = new SettingsForm();
+            formsettings.Show();
+        }
+
+        private void таблицаМедианныхсреднихToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (listViewGraphBrowser.CheckedItems.Count != 0)
+            {
+                int countLines = GetLineByGraphBrowerIndex(0).Points.Count;
+                if (ControlLinesNumber(countLines))
+                {
+
+                    string format = CallFormat(SettingsForm.DecimalNumber);
+                    string dirName = Path.Combine(SettingsForm.ExportPath, "Results_" + DateTime.Today.ToString("ddMMyy"));
+                    if (!Directory.Exists(dirName))
+                    {
+                        Directory.CreateDirectory(dirName);
+                    }
+                    // Create a new DataTable.
+                    string medTableadress = Path.Combine(dirName, "Таблица медианных значений" + ".docx");
+                    string midTableadress = Path.Combine(dirName, "Таблица средних значений" + ".docx");
+
+                    System.Data.DataTable mediantable = new DataTable(medTableadress);
+                    System.Data.DataTable middletable = new DataTable(midTableadress);
+
+
+                    mediantable.Columns.Add(new DataColumn("Название", System.Type.GetType("System.String")));
+                    middletable.Columns.Add(new DataColumn("Название", System.Type.GetType("System.String")));
+                    //mediantable.PrimaryKey = new DataColumn[] { firstColumn };
+
+
+                    for (int i = 0; i < listViewGraphBrowser.CheckedItems.Count; i++ )
+                    {
+                        LineItem item = GetLineByGraphBrowerIndex(i);
+                        Curve c = Curve.CurveList.Find(x => x.ListItem.GetHashCode() == listViewGraphBrowser.CheckedItems[i].GetHashCode());
+                        if (c.currentModifier.Text == "Среднеарифметическое" || c.currentModifier.Text == "Медианное")
+                        {
+                            for (int n = 1; n < item.Points.Count; n = n + 2)
+                            {
+                                string firststr = item.Points[n - 1].X.ToString();
+                                string secondstr = item.Points[n].X.ToString();
+                                //DataColumn column = new DataColumn(firststr + "..." + secondstr, System.Type.GetType("System.String"));
+
+                                mediantable.Columns.Add(new DataColumn(firststr + "..." + secondstr, System.Type.GetType("System.String")));
+                                middletable.Columns.Add(new DataColumn(firststr + "..." + secondstr, System.Type.GetType("System.String")));
+                            }
+                            break;
+                        }
+                    }
+
+                    for (int i = 0; i < listViewGraphBrowser.CheckedItems.Count; i++)
+                    {
+                        LineItem item = GetLineByGraphBrowerIndex(i);
+                        Curve c = Curve.CurveList.Find(x => x.ListItem.GetHashCode() == listViewGraphBrowser.CheckedItems[i].GetHashCode());
+
+                        if (c.currentModifier.Text == "Среднеарифметическое" || c.currentModifier.Text == "Медианное")
+                        {
+                            string name = Path.GetFileName(listViewGraphBrowser.CheckedItems[i].Text.ToString());
+                            name = name.Remove(name.LastIndexOf("_"));
+                            string[] row = new string[item.Points.Count / 2 + 1];
+                            row[0] = name;
+                            int counter = 1;
+                            for (int j = 0; j < item.Points.Count; j = j + 2)
+                            {
+                                Decimal val = Convert.ToDecimal(item.Points[j].Y);
+                                val = Math.Round(val, SettingsForm.DecimalNumber);
+                                row[counter] = String.Format(format, val);
+                                counter++;
+                            }
+
+                            if (c.currentModifier.Text == "Медианное")
+                            {
+                                DataRow datarow = mediantable.NewRow();
+                                datarow.ItemArray = row;
+                                mediantable.Rows.Add(datarow);
+                            }
+                            if (c.currentModifier.Text == "Среднеарифметическое")
+                            {
+                                DataRow datarow = middletable.NewRow();
+                                datarow.ItemArray = row;
+                                middletable.Rows.Add(datarow);
+                            }
+                        }
+                    }
+
+                    if (mediantable.Rows.Count > 0 || middletable.Rows.Count > 0)
+                    {
+                        DialogResult result = System.Windows.Forms.DialogResult.Yes;
+                        if (File.Exists(medTableadress) || File.Exists(midTableadress))
+                        {
+                            result = MessageBox.Show("Файл с таким названием уже существует, заменить его?", "Предупреждение", MessageBoxButtons.YesNo);                            
+                        }
+                        if (result == System.Windows.Forms.DialogResult.Yes)
+                        {
+                            WaitCursorON();
+                            string textinfo = "Готово. Файлы сохранёны как" + Environment.NewLine;
+                            if (mediantable.Rows.Count > 0)
+                            {
+                                CreateWordDocument(mediantable);
+                                textinfo += medTableadress + Environment.NewLine;
+                            }
+                            if (middletable.Rows.Count > 0)
+                            {
+                                CreateWordDocument(middletable);
+                                textinfo += midTableadress + Environment.NewLine;
+                            }
+                            WaitCursorOFF();
+                            MessageBox.Show(textinfo, "Информация", MessageBoxButtons.OK);
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show("Ни одно медианное или среднее значение не построено", "Внимание", MessageBoxButtons.OK);
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("Не все выделенные графики имеют одинаковое число точек", "Внимание", MessageBoxButtons.OK);
+                }            
+            }
+            else
+            {
+                MessageBox.Show("Ни одно медианное или среднее значение не выбрано", "Внимание", MessageBoxButtons.OK);
+            }
+        }
+
+        private void таблицаКонтрольныхЗначенийToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (treeViewFilesBrowser.Nodes.Count != 0)
+            {
+                TableWriter = new TableWriter(this);
+                TableWriter.Show();
+                TableWriter.LoadSource();
+            }
+            else
+            {
+                MessageBox.Show("Выберите хотя бы один график", "Внимание");
+            }
+        }
+
+        private void выгрузитьВtxtToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (CountSelectedNonInitialCurves() != 0)
+            {
+                string format = CallFormat(SettingsForm.DecimalNumber);
+                String exportPath;
+                exportPath = SettingsForm.ExportPath;
+                for (int i = 0; i < myPane.CurveList.Count; i++)
+                {
+                    if (myPane.CurveList[i].Tag.ToString() == "Median" || myPane.CurveList[i].Tag.ToString() == "Middle")
+                    {
+                        String name = myPane.CurveList[i].Label.Text.ToString();
+                        String partName = name.Substring(name.LastIndexOf("\\"));
+                        StreamWriter sw = new StreamWriter(exportPath + partName);
+
+                        for (int j = 0; j < myPane.CurveList[i].Points.Count; j++)
+                        {
+                            Decimal yVal = Convert.ToDecimal(myPane.CurveList[i].Points[j].Y);
+                            yVal = Math.Round(yVal, SettingsForm.DecimalNumber);
+                            string line = myPane.CurveList[i].Points[j].X.ToString() + "\t" + String.Format(format, yVal);
+                            if (SettingsForm.DecimalDelimeter == "Точка")
+                            {
+                                line = line.Replace(",", ".");
+                            }
+                            sw.WriteLine(line);
+                        }
+                        sw.Close();
+                    }
+                }
+                MessageBox.Show("Файлы созданы и сохранены в папке " + Environment.NewLine + exportPath, "Информация", MessageBoxButtons.OK);
+            }
+            else
+            {
+                MessageBox.Show("Ни одно медианное или среднее значение не выбрано", "Внимание", MessageBoxButtons.OK);
+            }
+        }
+
+       
+        private void загрузитьtoolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            LoadFileScenario();
+        }
+
+        private void поФайлуНаГрафикToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            String exportPath = SettingsForm.ExportPath;
+            string format = CallFormat(SettingsForm.DecimalNumber);
+            for (int i = 0; i < listViewGraphBrowser.Items.Count; i++)
+            {
+                ListViewItem item = listViewGraphBrowser.Items[i];
+                if (listViewGraphBrowser.Items[i].Checked)
+                {
+                    Curve c = Curve.CurveList.Find(x => x.ListItem.GetHashCode() == item.GetHashCode());
+                    LineItem pointList = c.LineOnGraph;
+
+                    String partName = item.Text;
+                    String postfix = "";
+                    if (c.currentModifier.Text == "Медианное")
+                    {
+                        postfix = "_m";
+                    }
+                    if (c.currentModifier.Text == "Среднеарифметическое")
+                    {
+                        postfix = "_s";
+                    }
+                    string dirName = Path.Combine(exportPath, "Results_" + DateTime.Today.ToString("ddMMyy"));
+                    if (!Directory.Exists(dirName))
+                    {
+                        Directory.CreateDirectory(dirName);
+                    }
+                    StreamWriter sw = new StreamWriter(Path.Combine(dirName, partName + postfix + ".dat"));
+
+
+                    for (int j = 0; j < pointList.Points.Count; j++)
+                    {
+                        Decimal yVal = Convert.ToDecimal(pointList.Points[j].Y);
+                        yVal = Math.Round(yVal, SettingsForm.DecimalNumber);
+                        string line = pointList.Points[j].X.ToString() + "\t" + String.Format(format, yVal);
+                        if (SettingsForm.DecimalDelimeter == "Точка")
+                        {
+                            line = line.Replace(",", ".");
+                        }
+                        sw.WriteLine(line);
+                    }
+
+                    sw.Close();
+                }
+            }
+        }
+
+        private void всеВОдинФайлToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            string totalText = "\t";
+            string format = CallFormat(SettingsForm.DecimalNumber);
+            string dirName = Path.Combine(SettingsForm.ExportPath, "Results_" + DateTime.Today.ToString("ddMMyy"));
+            if (!Directory.Exists(dirName))
+            {
+                Directory.CreateDirectory(dirName);
+            }
+            int k = 1;
+            string filename = Path.Combine(dirName, "res_1.dat");
+
+            while (File.Exists(filename))
+            {
+                k++;
+                filename = Path.Combine(dirName, "res_" + k + ".dat");
+            }
+
+            for (int i = 0; i < listViewGraphBrowser.CheckedItems.Count; i++)
+            {
+                totalText += listViewGraphBrowser.CheckedItems[i].Text + "\t";
+            }
+            totalText += "\r\n";
+
+            int countLines = GetLineByGraphBrowerIndex(0).Points.Count;
+
+            if (ControlLinesNumber(countLines))
+            {
+                for (int j = 0; j < countLines; j++)
+                {
+                    for (int i = 0; i < listViewGraphBrowser.CheckedItems.Count; i++)
+                    {
+                        LineItem pointList = GetLineByGraphBrowerIndex(i);
+                        if (i == 0)
+                        {
+                            totalText += pointList.Points[j].X.ToString() + "\t";
+                        }
+
+                        double yVal = Math.Round(pointList.Points[j].Y, SettingsForm.DecimalNumber);
+
+                        totalText += String.Format(format, yVal) + "\t";
+                    }
+                    totalText += "\r\n";
+                }
+
+                if (SettingsForm.DecimalDelimeter == "Точка")
+                {
+                    totalText = totalText.Replace(",", ".");
+                }
+                StreamWriter sw = new StreamWriter(filename);
+                sw.Write(totalText);
+                sw.Close();
+            }
+            else
+            {
+                MessageBox.Show("Не все выделенные графики имеют одинаковое число точек");
+            }
+        }
+
+        private bool ControlLinesNumber(int controlSum)
+        {
+            bool answer = true;            
+            for (int i = 0; i < listViewGraphBrowser.CheckedItems.Count; i++)
+            {
+                if (GetLineByGraphBrowerIndex(i).Points.Count != controlSum)
+                {
+                    answer = false;
+                }
+            }
+            return answer;
+        }
+
+        private LineItem GetLineByGraphBrowerIndex(int p)
+        {
+            var item = listViewGraphBrowser.CheckedItems[p];
+            Curve c = Curve.CurveList.Find(x => x.ListItem.GetHashCode() == item.GetHashCode());
+            return c.LineOnGraph;
+        }        
+
+        private void listViewGraphBrowser_KeyUp(object sender, KeyEventArgs e)
+        {
+            if (e.KeyValue == 46)
+            {
+                удалитьToolStripMenuItem_Click(sender, null);
+            }
+        }
+
+        
+
+       
+        
+
+       
+
+        
+
         
         
 
+        
+
+        
+
+        
+        
     }
 }

@@ -1,5 +1,4 @@
 ﻿using GraphReader.Classes;
-using Microsoft.Office.Interop.Word;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -19,7 +18,8 @@ namespace GraphReader
         List<float> FrequencyValues = new List<float>();
         List<List<float>> AnswerData = new List<List<float>>();
         MainForm mainForm;
-        
+        string format = "";
+        bool error = false;
         string[] Delimeter = new string[] { "\t", ",", ".", ";", " " };
         public TableWriter(MainForm main)
         {
@@ -31,15 +31,33 @@ namespace GraphReader
         private void Form1_Load(object sender, EventArgs e)
         {
             comboBoxStile.SelectedIndex = 0;
-            comboBoxSeparator.SelectedIndex = 0;
-            comboBoxDelimeter.SelectedIndex = 0;
+            comboBoxSeparator.SelectedIndex = 0;            
             openFileDialog1.InitialDirectory = mainForm.openFileDialog1.InitialDirectory;
-            textBoxDirectory.Text = mainForm.textBoxExportPath.Text;
-            numericUpDownDecPlaces.Value = mainForm.numericUpDownDecimalNumb.Value;
+            //textBoxDirectory.Text = mainForm.textBoxExportPath.Text;
+            numericUpDownDecPlaces.Value = SettingsForm.DecimalNumber;
         }
+        
+        
 
+        #region Operators
 
-        #region Operators and etc.
+        private void Format()
+        {
+            int decplaces = Convert.ToInt32(numericUpDownDecPlaces.Value);
+            string fA = "{0:0";
+            string fB = "}";
+
+            format = fA;
+            if (decplaces > 0)
+            {
+                format += ".";
+                for (int q = 0; q < decplaces; q++)
+                {
+                    format += "0";
+                }
+            }
+            format += fB;
+        }
         private List<String> OpenSource()
         {
             List<String> sourceFileNames = new List<string>();
@@ -52,115 +70,78 @@ namespace GraphReader
             }
             return sourceFileNames;
         }
-        
-        
-        #endregion
-
-        #region Methods and Functions
-        private void WaitCursorON()
+        private DataTable CreateTable()
         {
-            this.Cursor = System.Windows.Forms.Cursors.WaitCursor;
-            listBoxSource.Cursor = System.Windows.Forms.Cursors.WaitCursor;
-            listBoxValue.Cursor = System.Windows.Forms.Cursors.WaitCursor;
-        }
-        private void WaitCursorOFF()
-        {
-            this.Cursor = System.Windows.Forms.Cursors.Default;
-            listBoxSource.Cursor = System.Windows.Forms.Cursors.Default;
-            listBoxValue.Cursor = System.Windows.Forms.Cursors.Default;
-        }
+            DataTable table = new DataTable(Path.Combine(SettingsForm.ExportPath, "Таблица промежуточных значений.docx"));
 
-        public void LoadSource()
-        {
-            List<String> sourceFileNames = new List<string>();
-
-            for (int i = 1; i < mainForm.treeView1.Nodes.Count; i++)
-            {
-                sourceFileNames.Add(mainForm.treeView1.Nodes[i].Text);
-            }
-            AddSource(sourceFileNames);
-        }
-
-        private void AddSource(List<String> sourceFileNames)
-        {
-            for (int i = 0; i < sourceFileNames.Count; i++)
-            {
-                listBoxSource.Items.Add(sourceFileNames[i]);
-            }
-        }
-
-        private void SetParameters()
-        {
-            SourceFiles.Clear();
-            FrequencyValues.Clear();
-            AnswerData.Clear();
-            for (int i = 0; i < listBoxSource.Items.Count; i++)
-            {
-                SourceFiles.Add(listBoxSource.Items[i].ToString());
-            }
-
-            for (int i = 0; i < listBoxValue.Items.Count; i++)
-            {
-                FrequencyValues.Add(Convert.ToSingle(listBoxValue.Items[i].ToString().Replace(".", ",")));
-            }
-
-        }
-
-               
-        private void ExtructingFile(string fileName)
-        {
-            #region SubRegion Reading
-
-            StreamReader sr = new StreamReader(fileName);            
-            int numberOfLines = 0;
-            int valcol = Convert.ToInt32(numericUpDownColVal.Value) - 1;
-            string[] substrings;
-            string varline = sr.ReadLine();
-            string delimeter = Delimeter[comboBoxDelimeter.SelectedIndex];
-            while (varline != null)
-            {
-                numberOfLines++;                
-                varline = sr.ReadLine();
-            }
-
-            sr = new StreamReader(fileName);
-            float[] freqArr = new float[numberOfLines];
-            float[] valArr = new float[numberOfLines];
-            try
-            {
-                for (int i = 0; i < numberOfLines; i++)
-                {
-                    varline = sr.ReadLine();
-                    if (!(varline == ""))
-                    {
-                        substrings = varline.Split(Convert.ToChar(delimeter));
-                        freqArr[i] = Convert.ToSingle(substrings[0].Replace(".", ","));
-                        valArr[i] = Convert.ToSingle(substrings[valcol].Replace(".", ","));
-                    }
-                }
-            }
-            catch (Exception)
-            {
-                int errorIndex = AnswerData.Count;
-                MessageBox.Show("Unable to read file" + listBoxSource.Items[errorIndex].ToString() + ".", "Error", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                throw;
-            }
-            
-            sr.Close();
-            #endregion
-                        
-            List<float> answerValues = new List<float>(FrequencyValues.Count);
+            table.Columns.Add(new DataColumn("Название", System.Type.GetType("System.String")));
             for (int i = 0; i < FrequencyValues.Count; i++)
             {
-                int pickIndex = FindElementIndex(freqArr, FrequencyValues[i]);                
-                answerValues.Add(valArr[pickIndex]);
+                string headCell = Convert.ToString(FrequencyValues[i]);
+                table.Columns.Add(new DataColumn(headCell, System.Type.GetType("System.String")));
             }
-            AnswerData.Add(answerValues);
-        }
-
-        private int FindElementIndex(float[] arr, float val)
-        {
             
+            return table;
+        }        
+        private StringTable Reading(string p)
+        {
+            mainForm.FileReading(p);
+            StringTable st = mainForm.StringTable;
+            return st;
+        }
+        private void AddAnswer(DataTable table, DataElement2 st)
+        {   
+            double var;
+            string vars;
+            string fname = Path.GetFileNameWithoutExtension(st.Name);
+            int valcol = Convert.ToInt32(numericUpDownColVal.Value) - 1;
+            string[] row;
+            float[] freqArr = new float[st.RowsCount];
+            float[] valArr = new float[st.RowsCount];
+
+            for (int k = 0; k < st.RowsCount; k++)
+            {
+                try
+                {
+                    freqArr[k] = Convert.ToSingle(st[0, k].Replace(".", ","));
+                    valArr[k] = Convert.ToSingle(st[valcol, k].Replace(".", ","));
+                }
+                catch (Exception)
+                {
+                    MessageBox.Show("Ошибка чтения файла на строчке " + k);
+                    error = true;
+                    goto EndOfMethod;
+                }
+            }
+
+
+            //add line
+            row = new string[FrequencyValues.Count + 1];
+            row[0] = fname;
+
+            //add marks
+            for (int i = 0; i < FrequencyValues.Count; i++)
+            {
+                //find marks
+                int pickIndex = FindElementIndex(freqArr, FrequencyValues[i]);
+
+                var = Math.Round(valArr[pickIndex], Convert.ToInt32(numericUpDownDecPlaces.Value));
+                vars = String.Format(format, var);
+                if (comboBoxSeparator.SelectedIndex == 1)
+                {
+                    vars = vars.Replace(",", ".");
+                }
+                row[i + 1] = vars;
+            }
+            //
+            DataRow datarow = table.NewRow();
+            datarow.ItemArray = row;
+            table.Rows.Add(datarow);
+        EndOfMethod: ;
+        }
+        
+        private int FindElementIndex(float[] arr, float val)
+        {            
             float delta = Math.Abs(arr[0] - val);
             int index = 0;
 
@@ -175,249 +156,148 @@ namespace GraphReader
 
             return index;
         }
-        private void WritteAnswer()
-        {
-            int decplaces = Convert.ToInt32(numericUpDownDecPlaces.Value);
-            string fA = "{0:0";
-            string fB = "}";
-
-            string format = fA;
-            if (decplaces > 0)
-            {
-                format += ".";
-                for (int q = 0; q < decplaces; q++)
-                {
-                    format += "0";
-                }
-            }
-            format += fB;
-
-            List<List<string>> table = new List<List<string>>();                       
-
-            double var;
-            string vars;
-            if (comboBoxStile.SelectedIndex == 0)
-            {
-                List<string> firstline = new List<string>();
-                //First line
-                firstline.Add("");
-                for (int i = 0; i < listBoxValue.Items.Count; i++)
-                {
-                    firstline.Add(listBoxValue.Items[i].ToString());
-                }
-                table.Add(firstline);
-                
-
-                //Other lines
-                for (int j = 0; j < SourceFiles.Count; j++)
-                {
-                    List<string> line = new List<string>();
-                    string fardess = listBoxSource.Items[j].ToString();
-                    line.Add(fardess.Remove(fardess.LastIndexOf(".")).Substring(fardess.LastIndexOf("\\") + 1)); 
-                    for (int i = 0; i < FrequencyValues.Count; i++)
-                    {   
-                        var = Math.Round(AnswerData[j][i], Convert.ToInt32(numericUpDownDecPlaces.Value));
-                        vars = String.Format(format, var);
-                        if (comboBoxSeparator.SelectedIndex == 1)
-                        {
-                            vars = vars.Replace(",", ".");
-                        }
-                        line.Add(vars);
-                    }                    
-                    table.Add(line);
-                    
-                }
-            }
-            else
-            {
-                List<string> firstline = new List<string>();
-                //First line
-                firstline.Add("");
-                for (int i = 0; i < listBoxSource.Items.Count; i++)
-                {
-                    string fardess = listBoxSource.Items[i].ToString();
-                    firstline.Add(fardess.Remove(fardess.LastIndexOf(".")).Substring(fardess.LastIndexOf("\\") + 1));
-                }
-                table.Add(firstline);
-
-                //Other lines
-                for (int j = 0; j < FrequencyValues.Count; j++)
-                {
-                    List<string> line = new List<string>();
-                    line.Add(listBoxValue.Items[j].ToString());                     
-                    for (int i = 0; i < SourceFiles.Count; i++)
-                    {
-                        var = Math.Round(AnswerData[i][j], Convert.ToInt32(numericUpDownDecPlaces.Value));
-                        vars = String.Format(format, var);
-                        if (comboBoxSeparator.SelectedIndex == 1)
-                        {
-                            vars = vars.Replace(",", ".");
-                        }
-                        line.Add(vars);
-                    }
-                    table.Add(line);                    
-                }
-            }
-            CreateWordDocument(table);
-        }
-        private void SaveParameters()
-        {
-        }
-
-        private void CreateWordDocument(List<List<String>> tableData)
-        {            
-            try
-            {
-                //Create an instance for word app
-                Microsoft.Office.Interop.Word.Application winword = new Microsoft.Office.Interop.Word.Application();
-
-                //Set animation status for word application
-                winword.ShowAnimation = false;
-
-                //Set status for word application is to be visible or not.
-                winword.Visible = false;
-
-                //Create a missing variable for missing value
-                object missing = System.Reflection.Missing.Value;
-
-                //Create a new document
-                Microsoft.Office.Interop.Word.Document document = winword.Documents.Add(ref missing, ref missing, ref missing, ref missing);
-
-                //Add header into the document
-                foreach (Microsoft.Office.Interop.Word.Section section in document.Sections)
-                {
-
-                    //Get the header range and add the header details.
-                    Microsoft.Office.Interop.Word.Range headerRange = section.Headers[Microsoft.Office.Interop.Word.WdHeaderFooterIndex.wdHeaderFooterPrimary].Range;
-                    headerRange.Fields.Add(headerRange, Microsoft.Office.Interop.Word.WdFieldType.wdFieldPage);
-                    headerRange.ParagraphFormat.Alignment = Microsoft.Office.Interop.Word.WdParagraphAlignment.wdAlignParagraphRight;
-                    headerRange.Font.ColorIndex = Microsoft.Office.Interop.Word.WdColorIndex.wdAuto;
-                    headerRange.Font.Size = 10;
-                    headerRange.Text = "Таблица создана автоматически программой GraphReader " + MainForm.version; ;
-                }
-
-                //Add the footers into the document
-                foreach (Microsoft.Office.Interop.Word.Section wordSection in document.Sections)
-                {
-
-                    //Get the footer range and add the footer details.
-                    Microsoft.Office.Interop.Word.Range footerRange = wordSection.Footers[Microsoft.Office.Interop.Word.WdHeaderFooterIndex.wdHeaderFooterPrimary].Range;
-                    footerRange.Font.ColorIndex = Microsoft.Office.Interop.Word.WdColorIndex.wdAuto;
-                    footerRange.Font.Size = 10;
-                    footerRange.ParagraphFormat.Alignment = Microsoft.Office.Interop.Word.WdParagraphAlignment.wdAlignParagraphRight;
-                    footerRange.Text = "Таблица создана автоматически программой GraphReader " + MainForm.version;
-                }
-
-                //Add paragraph with Heading 1 style
-                Microsoft.Office.Interop.Word.Paragraph para1 = document.Content.Paragraphs.Add(ref missing);
-
-                para1.Range.Text = "Таблица промежуточных значений";
-                para1.Range.InsertParagraphAfter();
-
-
-                if (tableData.Count > 1)
-                {
-                    //Create a 5X5 table and insert some dummy record
-                    Table firstTable = document.Tables.Add(para1.Range, tableData.Count, tableData[0].Count, ref missing, ref missing);
-
-                    firstTable.Borders.Enable = 1;
-                    foreach (Row row in firstTable.Rows)
-                    {
-                        foreach (Cell cell in row.Cells)
-                        {
-                            //Header row
-                            if (cell.RowIndex == 1)
-                            {
-                                cell.Range.Text = tableData[0][cell.ColumnIndex - 1];
-                                cell.Range.Font.Bold = 1;
-                                //other format properties goes here
-                                cell.Range.Font.Name = "Times New Roman";
-                                cell.Range.Font.Size = 10;
-                                //cell.Range.Font.ColorIndex = WdColorIndex.wdGray25;                            
-                                cell.Shading.BackgroundPatternColor = WdColor.wdColorGray25;
-                                //Center alignment for the Header cells
-                                cell.VerticalAlignment = WdCellVerticalAlignment.wdCellAlignVerticalCenter;
-                                cell.Range.ParagraphFormat.Alignment = WdParagraphAlignment.wdAlignParagraphCenter;
-
-                            }
-                            //Data row
-                            else
-                            {
-                                cell.Range.Text = cell.Range.Text = tableData[cell.RowIndex - 1][cell.ColumnIndex - 1];
-                                cell.VerticalAlignment = WdCellVerticalAlignment.wdCellAlignVerticalCenter;
-                                cell.Range.ParagraphFormat.Alignment = WdParagraphAlignment.wdAlignParagraphCenter;
-                                if (cell.ColumnIndex == 1)
-                                {
-                                    cell.Range.Font.Size = 10;
-                                }
-                                else
-                                {
-                                    cell.Range.Font.Size = 10;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                //Save the document
-                String writingAdress = textBoxDirectory.Text + "\\" + textBoxTableName.Text + ".docx";
-
-                int extN = 1;
-                while (File.Exists(writingAdress))
-                {
-                    writingAdress = textBoxDirectory.Text + "\\" + textBoxTableName.Text + " (" + extN + ")" + ".docx";
-                    extN++;
-                }                
-                object filename = writingAdress;
-                document.SaveAs2(ref filename);
-                ((_Document)document).Close(ref missing, ref missing, ref missing);
-                document = null;
-                ((_Application)winword).Quit(ref missing, ref missing, ref missing);
-                winword = null;
-                string mesagetext = "Расположение документа: " + Environment.NewLine + writingAdress + Environment.NewLine + "Закрыть TableWriter?";
-                string caption = "Создание документа завершено";
-                DialogResult result;
-                result = MessageBox.Show(this, mesagetext, caption, MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1);
-                if (result == DialogResult.Yes)
-                {
-                    this.Close();   
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message);
-            }
-        }
 
         #endregion
 
-        #region Events
-        private void button1_Click(object sender, EventArgs e)
+
+        #region Methods and Functions
+        
+        private void WaitCursor(bool swith)
         {
-            WaitCursorON();
-            SetParameters();            
+            if (swith)
+            {
+                this.Cursor = System.Windows.Forms.Cursors.WaitCursor;
+                listBoxSource.Cursor = System.Windows.Forms.Cursors.WaitCursor;
+                listBoxValue.Cursor = System.Windows.Forms.Cursors.WaitCursor;
+            }
+            else
+            {
+                this.Cursor = System.Windows.Forms.Cursors.Default;
+                listBoxSource.Cursor = System.Windows.Forms.Cursors.Default;
+                listBoxValue.Cursor = System.Windows.Forms.Cursors.Default;
+            }
+            
+        }       
+        public void LoadSource()
+        {
+            List<String> sourceFileNames = new List<string>();
+
+            for (int i = 0; i < mainForm.treeViewFilesBrowser.Nodes.Count; i++)
+            {
+                sourceFileNames.Add(mainForm.treeViewFilesBrowser.Nodes[i].Tag.ToString());
+            }
+            AddSource(sourceFileNames);
+        }
+        private void AddSource(List<String> sourceFileNames)
+        {
+            for (int i = 0; i < sourceFileNames.Count; i++)
+            {
+                SourceFiles.Add(sourceFileNames[i]);
+                listBoxSource.Items.Add(Path.GetFileName(sourceFileNames[i]));
+            }
+        }
+        private void SetParameters()
+        {
+            error = false;
+            //SourceFiles.Clear();
+            FrequencyValues.Clear();
+            AnswerData.Clear();
+            
+            //for (int i = 0; i < listBoxSource.Items.Count; i++)
+            //{                
+            //    SourceFiles.Add(listBoxSource.Items[i].ToString());
+            //}
+
+            for (int i = 0; i < listBoxValue.Items.Count; i++)
+            {
+                FrequencyValues.Add(Convert.ToSingle(listBoxValue.Items[i].ToString().Replace(".", ",")));
+            }
+            Format();
+        }       
+        
+        #endregion
+
+        #region Events
+
+        
+        private void button1_Click(object sender, EventArgs e)
+        {            
+            WaitCursor(true);
+            SetParameters();
+
+            DataTable table = CreateTable();
+
             if (FrequencyValues.Count > 0)
             {
-                for (int i = 0; i < SourceFiles.Count; i++)
+                for (int i = 0; i < SourceFiles.Count && !error; i++)
                 {
-                    ExtructingFile(SourceFiles[i]);
+                    
+                    //StringTable st = Reading(SourceFiles[i]);
+                    DataElement2 stringDataTable = mainForm.LoadedData.Find(x => x.Name == SourceFiles[i]);
+                    AddAnswer(table, stringDataTable);
                 }
-                WritteAnswer();                
+                if (!error)
+                {
+                    if (comboBoxStile.SelectedIndex != 0)
+                    {
+                        table = Transpose(table);
+                    }
+                    try
+                    {
+                        mainForm.CreateWordDocument(table);
+                        var result = MessageBox.Show("Таблица создана и сохранена как " + Environment.NewLine + table.TableName + ".\r\nХотите продолжить работу в редакторе?", "Информация", MessageBoxButtons.YesNo);
+                        if (result == System.Windows.Forms.DialogResult.No)
+                        {
+                            Close();
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        MessageBox.Show("Ошибка создания таблицы");
+                    }   
+                }              
             }
-            WaitCursorOFF();
+            WaitCursor(false);
         }
+        private DataTable Transpose(DataTable dt)
+        {
+            DataTable dtNew = new DataTable(dt.TableName);
 
+            dtNew.Columns.Add(new DataColumn("Название", System.Type.GetType("System.String")));
+            
+            //adding columns    
+            for (int i = 0; i < dt.Rows.Count; i++)
+            {
+                dtNew.Columns.Add(new DataColumn(dt.Rows[i].ItemArray[0].ToString(), System.Type.GetType("System.String")));
+            }
+            
+
+            //Adding Row Data
+            for (int k = 1; k < dt.Columns.Count; k++)
+            {
+                DataRow r = dtNew.NewRow();
+                r[0] = dt.Columns[k].ToString();
+                for (int j = 1; j <= dt.Rows.Count; j++)
+                    r[j] = dt.Rows[j - 1][k];
+                dtNew.Rows.Add(r);
+            }
+            return dtNew;
+        }
         private void addFileToolStripMenuItem_Click(object sender, EventArgs e)
         {
             AddSource(OpenSource());
         }
 
+        private void EnterPressed()
+        {
+            listBoxValue.Items.Add(textBoxValue.Text);
+            textBoxValue.Text = "";
+        }
         private void textBoxValue_KeyPress(object sender, KeyPressEventArgs e)
         {            
             if (e.KeyChar == '\r')
             {
-                listBoxValue.Items.Add(textBoxValue.Text);
-                textBoxValue.Text = "";
+                EnterPressed();
             }
             else
             {
@@ -451,16 +331,19 @@ namespace GraphReader
         {
             try
             {
+                SourceFiles.RemoveAt(listBoxSource.SelectedIndex);
                 listBoxSource.Items.RemoveAt(listBoxSource.SelectedIndex);
             }
             catch (Exception)
-            {                                
+            {
+                MessageBox.Show("Не удалось удалить файл из списка", "Ошибка");
             }
             
         }
 
         private void deleteAllToolStripMenuItem_Click(object sender, EventArgs e)
         {
+            SourceFiles.Clear();
             listBoxSource.Items.Clear();
         }
 
@@ -479,14 +362,16 @@ namespace GraphReader
                 return; // Index out of range - nothing to do
 
             object selected = listBoxSource.SelectedItem;
+            string selectedSource = SourceFiles[listBoxSource.SelectedIndex];
 
             // Removing removable element
+            SourceFiles.RemoveAt(listBoxSource.SelectedIndex);
             listBoxSource.Items.Remove(selected);
             // Insert it in new position
+            SourceFiles.Insert(newIndex, selectedSource);
             listBoxSource.Items.Insert(newIndex, selected);
             // Restore selection
             listBoxSource.SetSelected(newIndex, true);
-
         }
 
         private void buttonDown_Click(object sender, EventArgs e)
@@ -504,10 +389,12 @@ namespace GraphReader
                 return; // Index out of range - nothing to do
 
             object selected = listBoxSource.SelectedItem;
-
+            string selectedSource = SourceFiles[listBoxSource.SelectedIndex];
             // Removing removable element
+            SourceFiles.RemoveAt(listBoxSource.SelectedIndex);
             listBoxSource.Items.Remove(selected);
             // Insert it in new position
+            SourceFiles.Insert(newIndex, selectedSource);
             listBoxSource.Items.Insert(newIndex, selected);
             // Restore selection
             listBoxSource.SetSelected(newIndex, true);
@@ -559,8 +446,7 @@ namespace GraphReader
             listBoxValue.Items.Insert(newIndex, selected);
             // Restore selection
             listBoxValue.SetSelected(newIndex, true);
-        }
-                
+        }                
 
         private void button2_Click(object sender, EventArgs e)      // Folder Change
         {
@@ -569,7 +455,7 @@ namespace GraphReader
 
             if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(folderBrowserDialog1.SelectedPath))
             {
-                textBoxDirectory.Text = folderBrowserDialog1.SelectedPath;                
+                //textBoxDirectory.Text = folderBrowserDialog1.SelectedPath;                
             }
             
         }
@@ -588,6 +474,33 @@ namespace GraphReader
 
 
         #endregion
+
+        private void comboBoxSeparator_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void tableLayoutPanel1_Paint(object sender, PaintEventArgs e)
+        {
+
+        }
+
+        private void textBoxValue_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            EnterPressed();
+        }
+
+        private void button4_Click(object sender, EventArgs e)
+        {
+            this.Close();
+        }
+
+        
 
         
 

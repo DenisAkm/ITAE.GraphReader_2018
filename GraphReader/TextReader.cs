@@ -18,8 +18,8 @@ namespace GraphReader
         bool stopExiting = false;
         int NumberOfLines;
         bool breaking;
-        ReplaceWindow replaceForm;
-        FindWindow findForm;        
+        Form3 replaceForm;
+        Form4 findForm;        
         
         public TextReader()
         {
@@ -377,7 +377,7 @@ namespace GraphReader
             }
             catch (Exception)
             {
-                replaceForm = new ReplaceWindow(this);
+                replaceForm = new Form3(this);
                 replaceForm.Show();
             }            
             replaceForm.WindowState = FormWindowState.Normal;
@@ -418,7 +418,7 @@ namespace GraphReader
             }
             catch (Exception)
             {
-                findForm = new FindWindow(this);
+                findForm = new Form4(this);
                 findForm.Show();
             }
             findForm.WindowState = FormWindowState.Normal;
